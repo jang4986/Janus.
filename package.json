@@ -1,0 +1,18 @@
+{
+  "name": "janus.",
+  "version": "1.0.0",
+  "description": "PBL6 is a Vite/React frontend and FastAPI backend for a short-video platform with JWT authentication, local video storage, AI content analysis, user reports, and moderation workflows.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^26.6.6"
+  }
+}

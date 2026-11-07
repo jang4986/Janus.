@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Đọc file .env
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
 
 export default defineConfig({
   // Thư mục chứa các Test Case

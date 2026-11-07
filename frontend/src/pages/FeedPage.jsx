@@ -6,10 +6,17 @@ import FeedGrid from '@/features/videos/components/FeedGrid'
 import Icon from '@/shared/components/Icon'
 
 export default function FeedPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const tag = searchParams.get('tag')?.trim()
-  const [view, setView] = useState('video')
   const [focusedVideo, setFocusedVideo] = useState(null)
+  const view = searchParams.get('view') === 'grid' ? 'grid' : 'video'
+
+  function setView(nextView) {
+    const nextParams = new URLSearchParams(searchParams)
+    if (nextView === 'video') nextParams.delete('view')
+    else nextParams.set('view', nextView)
+    setSearchParams(nextParams, { replace: true })
+  }
 
   function selectGridVideo(video) {
     setFocusedVideo(video)
@@ -21,7 +28,7 @@ export default function FeedPage() {
       <div className="feed-page">
         <div className="feed-page-header">
           <div className="feed-tabs">
-            <span className="feed-tab active">#{tag}</span>
+            <span className="feed-tab active">Kết quả: {tag}</span>
           </div>
           {focusedVideo ? (
             <button type="button" className="button ghost small" onClick={() => setFocusedVideo(null)}>
@@ -44,13 +51,6 @@ export default function FeedPage() {
 
   return (
     <div className="feed-page">
-      <div className="feed-page-header">
-        <div className="feed-tabs"><span className="feed-tab active">Dành cho bạn</span></div>
-        <div className="feed-view-switch" role="group" aria-label="Chế độ xem video">
-          <button type="button" className={view === 'video' ? 'active' : ''} onClick={() => setView('video')} aria-pressed={view === 'video'}>Video dọc</button>
-          <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Lưới</button>
-        </div>
-      </div>
       {view === 'video'
         ? <VideoFeed focusVideo={focusedVideo} />
         : <FeedGrid onSelectVideo={selectGridVideo} />}

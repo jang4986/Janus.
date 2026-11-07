@@ -6,9 +6,10 @@ import { EmptyState, ErrorNote, Spinner, StatusBadge } from '@/shared/components
 import { VIDEO_STATUS_LABEL, formatBytes, formatDateTime } from '@/shared/lib/format'
 import { useAuth } from '@/features/auth/AuthContext'
 import AiResultPanel from '@/features/videos/components/AiResultPanel'
-import { deleteVideo, fetchMyVideos, streamUrl } from '@/features/videos/api/videosApi'
+import { deleteVideo, fetchMyVideos, streamUrl, thumbnailUrl } from '@/features/videos/api/videosApi'
 import { fetchMyModerationStats } from '@/features/moderation/api/moderationApi'
 import '@/styles/profile.css'
+import '@/styles/profile-editor.css'
 
 const STATUS_TABS = [
   { id: 'all', label: 'Tất cả' },
@@ -18,7 +19,7 @@ const STATUS_TABS = [
 ]
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const navigate = useNavigate()
   const [videos, setVideos] = useState([])
   const [activeTab, setActiveTab] = useState('all')
@@ -28,6 +29,23 @@ export default function ProfilePage() {
   const [busyId, setBusyId] = useState(null)
   const [moderationStats, setModerationStats] = useState(null)
   const [moderationStatsError, setModerationStatsError] = useState('')
+  const [profileDraft, setProfileDraft] = useState({ display_name: user.display_name, bio: user.bio || '', avatar_url: user.avatar_url || '' })
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+
+  async function saveProfile(event) {
+    event.preventDefault()
+    setProfileSaving(true)
+    setProfileMessage('')
+    try {
+      await updateProfile({ ...profileDraft, avatar_url: profileDraft.avatar_url.trim() || null })
+      setProfileMessage('Thông tin cá nhân đã được cập nhật.')
+    } catch (requestError) {
+      setProfileMessage(requestError.detail || requestError.message || 'Chưa thể cập nhật hồ sơ.')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (user.role !== 'moderator') return
@@ -105,7 +123,7 @@ export default function ProfilePage() {
   return (
     <div className="page">
       <div className="profile-head">
-        <span className="avatar avatar-lg">{user.display_name.slice(0, 2).toUpperCase()}</span>
+        <span className="avatar avatar-lg">{user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.display_name.slice(0, 2).toUpperCase()}</span>
         <div>
           <h1>{user.display_name}</h1>
           <p className="page-sub">
@@ -147,6 +165,19 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      <form className="profile-edit-panel" onSubmit={saveProfile}>
+        <div className="profile-edit-heading">
+          <div><span className="overline">HỒ SƠ CỦA BẠN</span><h2>Thông tin cá nhân</h2></div>
+          {profileDraft.avatar_url && <img className="profile-avatar-preview" src={profileDraft.avatar_url} alt="Ảnh đại diện xem trước" />}
+        </div>
+        <div className="profile-edit-fields">
+          <label className="field"><span>Tên hiển thị</span><input className="text-input" value={profileDraft.display_name} maxLength={120} required onChange={(event) => setProfileDraft((draft) => ({ ...draft, display_name: event.target.value }))} /></label>
+          <label className="field"><span>Liên kết ảnh đại diện</span><input className="text-input" type="url" placeholder="https://…" value={profileDraft.avatar_url} onChange={(event) => setProfileDraft((draft) => ({ ...draft, avatar_url: event.target.value }))} /></label>
+          <label className="field profile-bio-field"><span>Giới thiệu</span><textarea className="text-input" rows={3} maxLength={500} value={profileDraft.bio} onChange={(event) => setProfileDraft((draft) => ({ ...draft, bio: event.target.value }))} placeholder="Một vài dòng về bạn" /></label>
+        </div>
+        <div className="profile-edit-footer"><span aria-live="polite">{profileMessage}</span><button className="button primary" type="submit" disabled={profileSaving}>{profileSaving ? 'Đang lưu…' : 'Lưu hồ sơ'}</button></div>
+      </form>
 
       <ErrorNote>{error}</ErrorNote>
 
@@ -201,7 +232,7 @@ export default function ProfilePage() {
                   <li key={video.id} className={video.id === selectedId ? 'video-row active' : 'video-row'}>
                     <button type="button" className="video-row-main" onClick={() => setSelectedId(video.id)}>
                       <span className="video-row-thumb">
-                        <video src={streamUrl(video.id)} poster={video.thumbnail_url || undefined} muted playsInline preload="none" />
+                        <video src={streamUrl(video.id)} poster={thumbnailUrl(video.id)} muted playsInline preload="none" />
                       </span>
                       <span className="video-row-copy">
                         <strong>{video.caption || video.original_filename}</strong>

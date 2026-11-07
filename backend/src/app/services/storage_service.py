@@ -88,21 +88,30 @@ class StorageService:
         )
 
     def get_thumbnail_url(self, file_key: str) -> str | None:
+        thumbnail_keys = [
+            file_key,
+            str(Path(file_key).with_suffix(".png")),
+            str(Path(file_key).with_suffix(".webp")),
+        ]
         if self.is_s3:
-            try:
-                self._client.head_object(
-                    Bucket=self.settings.s3_bucket_name,
-                    Key=file_key,
-                )
-            except ClientError as exc:
-                error_code = exc.response.get("Error", {}).get("Code")
-                if error_code in {"403", "404", "NoSuchKey", "NotFound"}:
-                    return None
-                raise
-            return self.get_stream_url(file_key, public=True)
-        if Path(file_key).is_file():
-            return None
-        return None
+            for key in thumbnail_keys:
+                try:
+                    self._client.head_object(
+                        Bucket=self.settings.s3_bucket_name,
+                        Key=key,
+                    )
+                except ClientError as exc:
+                    error_code = exc.response.get("Error", {}).get("Code")
+                    if error_code in {"403", "404", "NoSuchKey", "NotFound"}:
+                        continue
+                    raise
+                return self.get_stream_url(key, public=True)
+            return f"/api/v1/videos/{Path(file_key).stem}/thumbnail"
+        for key in thumbnail_keys:
+            path = Path(self.settings.upload_dir) / key
+            if path.is_file():
+                return f"/api/v1/videos/{path.stem}/thumbnail?v={path.stat().st_mtime_ns}"
+        return f"/api/v1/videos/{Path(file_key).stem}/thumbnail"
 
     @staticmethod
     def is_existing_local_path(file_key: str) -> bool:

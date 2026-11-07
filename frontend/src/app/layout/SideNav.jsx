@@ -43,7 +43,7 @@ export default function SideNav() {
       <div className="nav-search-wrap">
         <form className="nav-search" onSubmit={(event) => {event.preventDefault();searchTag()}}>
           <Icon name="search" size={16} />
-          <input type="search" value={searchText} placeholder="Tìm video theo nhãn" onChange={(event)=>setSearchText(event.target.value)} onFocus={() => setSearchOpen(true)} onBlur={() => setTimeout(() => setSearchOpen(false), 150)} />
+          <input type="search" value={searchText} placeholder="Tìm video hoặc nhãn" onChange={(event)=>setSearchText(event.target.value)} onFocus={() => setSearchOpen(true)} onBlur={() => setTimeout(() => setSearchOpen(false), 150)} />
         </form>
         {searchOpen && (
           <div className="search-dropdown">
@@ -107,10 +107,10 @@ export default function SideNav() {
         {isAuthenticated ? (
           <>
             <div className="side-user">
-              <span className="avatar">{user.display_name.slice(0, 2).toUpperCase()}</span>
+              <span className="avatar">{user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.display_name.slice(0, 2).toUpperCase()}</span>
               <div className="side-user-copy">
                 <strong>{user.display_name}</strong>
-                <span>{user.role}</span>
+                <span>#{user.discriminator}</span>
               </div>
             </div>
             <button type="button" className="nav-item" onClick={logout}>

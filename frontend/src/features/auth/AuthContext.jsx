@@ -57,6 +57,12 @@ export function AuthProvider({ children }) {
     [login],
   )
 
+  const updateProfile = useCallback(async (input) => {
+    const profile = await authApi.updateProfile(input)
+    setUser(profile)
+    return profile
+  }, [])
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken()
     try {
@@ -69,8 +75,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, ready, isAuthenticated: Boolean(user), login, register, logout }),
-    [user, ready, login, register, logout],
+    () => ({ user, ready, isAuthenticated: Boolean(user), login, register, updateProfile, logout }),
+    [user, ready, login, register, updateProfile, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

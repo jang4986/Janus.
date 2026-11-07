@@ -70,3 +70,7 @@ export function resetPassword(token, newPassword) {
 export function fetchProfile() {
   return apiFetch('/v1/profile')
 }
+
+export function updateProfile(payload) {
+  return apiFetch('/v1/profile', { method: 'PATCH', body: payload })
+}

@@ -40,17 +40,15 @@ export default function UploadPage() {
   }
 
   return (
-    <div>
-      <div className="page">
-        <div className="page-head" style={{ alignItems: 'center' }}>
+    <main className="page upload-page">
+      <header className="upload-heading">
+        <div>
+          <span className="overline">GÓC SÁNG TẠO</span>
           <h1>Tải video lên</h1>
-          <p className="page-sub" style={{ marginTop: 0 }}>
-            Chọn file MP4, thêm caption và chờ hệ thống xử lý trước khi xuất bản.
-          </p>
+          <p>Chia sẻ một khoảnh khắc mới với cộng đồng Janus.</p>
         </div>
-        <span className="hint-chip">MP4 · tối đa 50 MB</span>
-      </div>
-
+        <span className="upload-format-chip"><Icon name="film" size={15} /> MP4 <i /> Tối đa 50 MB</span>
+      </header>
       <div className="upload-grid">
         <form className="panel upload-panel" onSubmit={submit}>
           <UploadDropzone file={file} onSelect={selectFile} disabled={uploading} />
@@ -174,16 +172,18 @@ export default function UploadPage() {
         <aside className="panel info-panel">
           <div className="info-title">
             <Icon name="shield" size={17} />
-            <h2>Hướng dẫn</h2>
+            <h2>Trước khi đăng</h2>
           </div>
           <ul className="info-list">
-            <li>Chỉ chấp nhận tệp MP4, tối đa 50MB.</li>
-            <li>Video chỉ xuất hiện ở feed sau khi được phê duyệt an toàn.</li>
+            <li>Chọn video MP4 có dung lượng dưới 50 MB.</li>
+            <li>Thêm mô tả ngắn để mọi người hiểu nội dung.</li>
+            <li>Video sẽ xuất hiện trên feed sau khi được duyệt.</li>
           </ul>
+          <div className="upload-review-note"><span className="upload-review-dot" /><span>Video được kiểm tra an toàn trước khi xuất bản.</span></div>
         </aside>
       </div>
 
       {uploadedVideo && <AiResultPanel videoId={uploadedVideo.id} result={aiResult} loading={aiLoading} />}
-    </div>
+    </main>
   )
 }

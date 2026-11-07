@@ -5,7 +5,7 @@ import { recordVideoView } from '../api/videosApi'
 import ReportDialog from './ReportDialog'
 import CommentDrawer from './CommentDrawer'
 import { toggleLike, toggleFollow, toggleBookmark } from '../api/socialApi'
-import { streamUrl } from '../api/videosApi'
+import { streamUrl, thumbnailUrl } from '../api/videosApi'
 import { useAuth } from '@/features/auth/AuthContext'
 
 function formatViewCount(num) {
@@ -291,23 +291,25 @@ export default function VideoSlide({
   return (
     <article className="slide" ref={containerRef}>
       <div className="slide-stage">
-        <video
-          ref={videoRef}
-          src={source}
-          poster={video.thumbnail_url || undefined}
-          loop
-          playsInline
-          autoPlay={isActive}
-          controls
-          muted={muted}
-          preload={isActive ? 'auto' : 'none'}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          onError={handleMediaError}
-          onCanPlay={handleCanPlay}
-        />
+        <div className="slide-video-frame">
+          <video
+            ref={videoRef}
+            src={source}
+            poster={thumbnailUrl(video.id)}
+            loop
+            playsInline
+            autoPlay={isActive}
+            controls
+            muted={muted}
+            preload={isActive ? 'auto' : 'none'}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
+            onError={handleMediaError}
+            onCanPlay={handleCanPlay}
+          />
+        </div>
         {!playing && (
           <button type="button" className="slide-play" onClick={togglePlayback} aria-label="Phát video">
             <Icon name="play" size={26} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Icon from '@/shared/components/Icon'
-import { fetchFeed, searchVideosByTag } from '../api/videosApi'
+import { fetchFeed, searchVideosByTag, thumbnailUrl } from '../api/videosApi'
 
 function keepPublishedVideos(items = []) {
   return items.filter((video) => (
@@ -63,7 +63,7 @@ export default function FeedGrid({ activeTag = '', onSelectVideo }) {
 
   if (loading) return <div className="feed-grid-empty">Đang tải video…</div>
   if (error && videos.length === 0) return <div className="feed-grid-empty"><span>{error}</span><button type="button" className="button ghost" onClick={refresh}>Thử lại</button></div>
-  if (!videos.length) return <div className="feed-grid-empty">Chưa có video nào được đăng</div>
+  if (!videos.length) return <div className="feed-grid-empty">{activeTag ? `Không tìm thấy video phù hợp với “${activeTag}”.` : 'Chưa có video nào được đăng'}</div>
 
   return (
     <div className="feed-grid-scroll">
@@ -80,9 +80,7 @@ export default function FeedGrid({ activeTag = '', onSelectVideo }) {
               aria-label={`Xem video: ${title}`}
             >
               <span className="feed-grid-thumb">
-                {video.thumbnail_url
-                  ? <img src={video.thumbnail_url} alt="" loading="lazy" />
-                  : <span className="feed-grid-placeholder" aria-hidden="true" />}
+                <img src={thumbnailUrl(video.id)} alt="" loading="lazy" />
                 <span className="feed-grid-play"><Icon name="play" size={16} /></span>
                 <span className="feed-grid-duration"><Icon name="play" size={11} />{Number(video.view_count || 0).toLocaleString('vi-VN')} lượt xem</span>
               </span>

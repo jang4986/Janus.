@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import InvalidInputError
@@ -53,7 +53,7 @@ def search_published_videos_by_tag(
         .scalar_subquery()
     )
     conditions = [
-        Video.id.in_(matching_label_ids),
+        or_(Video.id.in_(matching_label_ids), Video.caption.ilike(f"%{normalized_tag}%")),
         Video.status == VideoStatus.published,
         Video.visibility == VideoVisibility.public,
         Video.is_deleted.is_(False),
@@ -101,7 +101,9 @@ def search_published_videos_by_tag(
         SearchTagItem(
             id=video.id,
             caption=video.caption,
-            thumbnail_url=storage.get_thumbnail_url(f"thumbnails/{video.id}.jpg"),
+            thumbnail_url=storage.get_thumbnail_url(
+                f"thumbnails/first-frame/{video.id}.jpg"
+            ),
             stream_url=(
                 storage.get_stream_url(video.storage_path, public=True)
                 if storage.is_s3

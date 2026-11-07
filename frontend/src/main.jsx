@@ -7,6 +7,7 @@ import './styles/layout.css'
 import './styles/components.css'
 import './styles/feed.css'
 import './styles/upload.css'
+import './styles/upload-editor.css'
 import './styles/auth.css'
 
 createRoot(document.getElementById('root')).render(

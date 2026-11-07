@@ -1,7 +1,8 @@
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -33,6 +34,8 @@ from app.services import (
     video_service,
     view_tracking_service,
 )
+from app.services.storage_service import get_storage_service
+from app.services.thumbnail_service import extract_first_frame
 
 router = APIRouter(tags=["videos"])
 
@@ -163,6 +166,54 @@ def stream_video(
         media_type="video/mp4",
         filename=target.name,
         headers={"Cache-Control": "private, max-age=60"},
+    )
+
+
+@router.get("/videos/{video_id}/thumbnail", response_model=None)
+def video_thumbnail(
+    video_id: UUID,
+    user: User | None = Depends(optional_user),
+    db: Session = Depends(get_db),
+) -> FileResponse | RedirectResponse:
+    video = db.get(Video, video_id)
+    if video is None or video.is_deleted:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh bìa")
+    video_status = getattr(video.status, "value", video.status)
+    video_visibility = getattr(video.visibility, "value", video.visibility)
+    is_public = video_status == "published" and video_visibility == "public"
+    is_owner = user is not None and video.owner_id == user.id
+    user_role = getattr(user.role, "value", user.role) if user is not None else None
+    is_staff = user_role in {"moderator", "admin"}
+    if not (is_public or is_owner or is_staff):
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh bìa")
+    storage = get_storage_service()
+    if storage.is_s3:
+        thumbnail_key = f"thumbnails/first-frame/{video_id}.jpg"
+        thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
+        if thumbnail_url.startswith("/api/v1/videos/"):
+            try:
+                with storage.download_to_temp(video.storage_path) as video_path:
+                    thumbnail = extract_first_frame(video_path)
+                storage.upload_thumbnail(thumbnail_key, thumbnail)
+                thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
+            except Exception as exc:
+                raise HTTPException(status_code=404, detail="Không thể tạo ảnh xem trước cho video này") from exc
+        return RedirectResponse(thumbnail_url)
+    path = Path(get_settings().upload_dir) / f"thumbnails/first-frame/{video_id}.jpg"
+    if not path.is_file():
+        try:
+            with storage.download_to_temp(video.storage_path) as video_path:
+                thumbnail = extract_first_frame(video_path)
+            storage.upload_thumbnail(f"thumbnails/first-frame/{video_id}.jpg", thumbnail)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404,
+                detail="Không thể tạo ảnh xem trước cho video này",
+            ) from exc
+    return FileResponse(
+        path,
+        media_type=f"image/{path.suffix.lstrip('.')}",
+        headers={"Cache-Control": "private, max-age=300"},
     )
 
 

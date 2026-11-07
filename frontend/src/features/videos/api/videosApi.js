@@ -18,6 +18,10 @@ export function streamUrl(videoId) {
   return apiUrl(`/v1/videos/${videoId}/stream`)
 }
 
+export function thumbnailUrl(videoId) {
+  return apiUrl(`/v1/videos/${videoId}/thumbnail`)
+}
+
 export function deleteVideo(videoId) {
   return apiFetch(`/v1/videos/${videoId}`, { method: 'DELETE' })
 }

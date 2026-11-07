@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
 import Icon from '@/shared/components/Icon'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -15,7 +15,18 @@ const TITLES = {
 
 export default function TopBar() {
   const { pathname } = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, isAuthenticated } = useAuth()
+  const roleLabel = user?.role === 'moderator' ? 'Kiểm duyệt viên' : user?.role === 'admin' ? 'Quản trị viên' : null
+  const feedView = searchParams.get('view') === 'grid' ? 'grid' : 'video'
+  const showFeedSwitch = pathname === '/' && !searchParams.has('tag')
+
+  function changeFeedView(nextView) {
+    const nextParams = new URLSearchParams(searchParams)
+    if (nextView === 'video') nextParams.delete('view')
+    else nextParams.set('view', nextView)
+    setSearchParams(nextParams, { replace: true })
+  }
 
   return (
     <header className="topbar">
@@ -26,15 +37,21 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-actions">
-        {isAuthenticated && (
+        {isAuthenticated && roleLabel && (
           <span className="role-pill" title="Vai trò hiện tại">
             <i />
-            {user.role}
+            {roleLabel}
           </span>
+        )}
+        {showFeedSwitch && (
+          <div className="topbar-feed-switch" role="group" aria-label="Chế độ xem video">
+            <button type="button" className={feedView === 'video' ? 'active' : ''} onClick={() => changeFeedView('video')} aria-pressed={feedView === 'video'}>Video dọc</button>
+            <button type="button" className={feedView === 'grid' ? 'active' : ''} onClick={() => changeFeedView('grid')} aria-pressed={feedView === 'grid'}>Lưới</button>
+          </div>
         )}
         {isAuthenticated ? (
           <Link to="/profile" className="avatar" aria-label="Hồ sơ">
-            {user.display_name.slice(0, 2).toUpperCase()}
+            {user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.display_name.slice(0, 2).toUpperCase()}
           </Link>
         ) : (
           <Link to="/login" className="button ghost">

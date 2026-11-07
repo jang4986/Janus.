@@ -218,6 +218,13 @@ def run_mock_analysis(video_id: UUID, note: str | None = None) -> None:
     """Giữ nguyên hành vi mock cũ (dùng khi AI bị tắt hoặc môi trường AI chưa sẵn sàng)."""
 
     def handler(db: Session, job: AIJob, video: Video) -> None:
+        try:
+            storage = get_storage_service()
+            with storage.download_to_temp(video.storage_path) as path:
+                thumbnail = extract_first_frame(path)
+            storage.upload_thumbnail(f"thumbnails/first-frame/{video.id}.jpg", thumbnail)
+        except Exception:
+            logger.exception("Không tạo được thumbnail cho video %s", video.id)
         _apply_mock_result(db, job, video, note)
 
     _run_job(video_id, handler)
@@ -238,7 +245,7 @@ def run_video_analysis(video_id: UUID) -> None:
         with get_storage_service().download_to_temp(video.storage_path) as path:
             thumbnail = extract_first_frame(path)
             get_storage_service().upload_thumbnail(
-                f"thumbnails/{video.id}.jpg",
+                f"thumbnails/first-frame/{video.id}.jpg",
                 thumbnail,
             )
             if mode != "off":

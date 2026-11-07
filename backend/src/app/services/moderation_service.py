@@ -106,7 +106,9 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
             if storage.is_s3 and not storage.is_existing_local_path(video.storage_path)
             else f"/api/v1/videos/{video.id}/stream"
         )
-        thumbnail_url = storage.get_thumbnail_url(f"thumbnails/{video.id}.jpg")
+        thumbnail_url = storage.get_thumbnail_url(
+            f"thumbnails/first-frame/{video.id}.jpg"
+        )
 
         item = ModerationQueueItemResponse(
             id=video.id,

@@ -1,0 +1,30 @@
+.upload-page{width:min(1180px,100%);padding-top:38px}
+.upload-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:28px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.upload-heading .overline{margin-bottom:7px;letter-spacing:.12em}
+.upload-heading h1{margin:0;font-size:clamp(28px,4vw,38px);line-height:1.1;letter-spacing:-1.4px}
+.upload-heading p{margin:9px 0 0;color:var(--text-dim);font-size:13px;line-height:1.6}
+.upload-format-chip{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.035);color:var(--text-dim);font-size:11px}
+.upload-format-chip svg{color:var(--accent)}
+.upload-format-chip i{width:3px;height:3px;border-radius:50%;background:var(--text-faint)}
+.upload-grid{grid-template-columns:minmax(0,1fr) 260px;gap:20px}
+.upload-panel{padding:22px;background:linear-gradient(155deg,rgba(255,255,255,.035),transparent 38%),var(--surface)}
+.upload-panel .dropzone-wrap{margin-bottom:20px}
+.upload-panel .dropzone{height:clamp(220px,34vh,320px);border-radius:14px;background:rgba(0,0,0,.2)}
+.upload-panel .dropzone:hover,.upload-panel .dropzone.dragging{background:rgba(254,44,85,.055)}
+.upload-panel .dropzone:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.upload-panel .dropzone h3{font-size:16px;letter-spacing:-.2px}
+.upload-panel .dropzone p{margin:0}
+.upload-panel .field{margin-bottom:8px}
+.upload-panel .text-input{height:46px;border-radius:10px}
+.upload-panel .panel-actions{margin-top:20px;padding-top:18px}
+.upload-panel .panel-actions>.button{min-width:190px;height:42px;border-radius:10px}
+.upload-panel .selected-file video{max-height:340px;object-fit:contain}
+.info-panel{position:sticky;top:calc(var(--topbar-height) + 20px);padding:20px;background:linear-gradient(145deg,rgba(8,127,132,.08),transparent 65%),var(--surface)}
+.info-panel .info-title{color:var(--accent)}
+.info-panel h2{font-size:14px;letter-spacing:-.2px}
+.info-list{margin-top:17px;gap:14px}
+.info-list li{font-size:12px;line-height:1.65}
+.upload-review-note{display:flex;align-items:flex-start;gap:9px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);color:var(--text-faint);font-size:11px;line-height:1.55}
+.upload-review-dot{width:7px;height:7px;margin-top:4px;flex:none;border-radius:50%;background:var(--ok);box-shadow:0 0 12px rgba(45,212,167,.45)}
+@media(max-width:980px){.upload-grid{grid-template-columns:1fr}.info-panel{position:static}.upload-page{padding-top:28px}}
+@media(max-width:600px){.upload-page{padding:22px 14px 34px}.upload-heading{align-items:flex-start;flex-direction:column;gap:14px;margin-bottom:20px;padding-bottom:18px}.upload-heading h1{font-size:30px}.upload-panel{padding:15px}.upload-panel .dropzone{height:230px}.upload-panel .panel-actions>.button{width:100%}.upload-format-chip{font-size:10px}}

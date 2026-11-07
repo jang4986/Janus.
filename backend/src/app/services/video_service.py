@@ -154,7 +154,9 @@ def list_published_feed(
                 and not storage.is_existing_local_path(video.storage_path)
                 else f"/api/v1/videos/{video.id}/stream"
             ),
-            thumbnail_url=storage.get_thumbnail_url(f"thumbnails/{video.id}.jpg"),
+            thumbnail_url=storage.get_thumbnail_url(
+                f"thumbnails/first-frame/{video.id}.jpg"
+            ),
             allow_comments=video.allow_comments,
             created_at=video.created_at,
             view_count=getattr(video, "view_count", 0) or 0,

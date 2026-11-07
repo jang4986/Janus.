@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '@/shared/components/Icon'
 import { StatusBadge } from '@/shared/components/Feedback'
 import { VIDEO_STATUS_LABEL } from '@/shared/lib/format'
-import { fetchMyVideos, updateVideo } from '@/features/videos/api/videosApi'
+import { fetchMyVideos, thumbnailUrl, updateVideo } from '@/features/videos/api/videosApi'
 
 const STATUS_TABS = [
   { id: 'all', label: 'Tất cả' },
@@ -123,6 +123,7 @@ export default function EditVideoPage() {
                 {filteredVideos.map((video) => (
                   <button key={video.id} type="button" className="video-list-item" onClick={() => selectVideo(video)}>
                     <div className="video-list-thumb">
+                      <img src={thumbnailUrl(video.id)} alt="" />
                       <Icon name="play" size={18} />
                     </div>
                     <div className="video-list-info">

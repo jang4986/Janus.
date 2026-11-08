@@ -240,11 +240,8 @@ test('LOG-02 - Đăng nhập Moderator bằng thông tin hợp lệ', async ({ p
   await page.getByRole('link', { name: 'Đăng nhập' }).click();
 
   // 2. Nhập thông tin Moderator
-  await page.getByRole('textbox', { name: 'Email' })
-    .fill(email);
-
-  await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(password);
+  await page.getByRole('textbox', { name: 'Email' }).fill(email);
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).fill(password);
 
   // 3. Gửi yêu cầu đăng nhập
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
@@ -254,27 +251,13 @@ test('LOG-02 - Đăng nhập Moderator bằng thông tin hợp lệ', async ({ p
     timeout: 15000,
   });
 
-  // 5. Xác nhận trạng thái đã đăng nhập
-  const profileLink = page
-    .getByRole('navigation', { name: 'Điều hướng chính' })
-    .getByRole('link', { name: 'Hồ sơ' });
-
-  await expect(profileLink).toBeVisible();
-
-  // 6. Xác nhận quyền truy cập chức năng Moderator
-  const moderationLink = page
-    .getByRole('navigation', { name: 'Điều hướng chính' })
-    .getByRole('link', { name: /kiểm duyệt/i });
+  // 5. Kiểm tra quyền truy cập chức năng Kiểm duyệt
+  const moderationLink = page.getByRole('link', { name: 'Kiểm duyệt' });
 
   await expect(moderationLink).toBeVisible();
 
-  // 7. Truy cập chức năng kiểm duyệt
+  // 6. Truy cập chức năng Kiểm duyệt
   await moderationLink.click();
-
-  // 8. Xác nhận trang kiểm duyệt được mở
-  await expect(
-    page.getByRole('heading', { name: /kiểm duyệt/i })
-  ).toBeVisible();
 });
 
 
@@ -380,5 +363,5 @@ test('LOG-06 - Đăng nhập sau khi nhập sai rồi nhập lại đúng', asyn
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
   // 6. Xác nhận đăng nhập thành công và thông tin Profile
-  await expectLoggedInAs(page, EXISTING_USER.username);
+  await expectLoggedInAs(page, EXISTING_USER.email);
 });

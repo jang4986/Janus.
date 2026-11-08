@@ -77,7 +77,6 @@ export default function BookmarksPage() {
                     <p className="bookmark-card-title" title={title}>{title}</p>
                     <div className="bookmark-card-details">
                       <span className="bookmark-card-user">@{authorName}</span>
-                      {video.created_at && <span className="bookmark-card-date">Đăng {formatDateTime(video.created_at)}</span>}
                       {video.like_count !== undefined && <span className="bookmark-card-likes"><Icon name="heart" size={12} />{video.like_count}</span>}
                     </div>
                   </span>

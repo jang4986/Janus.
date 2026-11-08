@@ -33,7 +33,7 @@ export default function FeedPage() {
     <div className="feed-page">
       {view === 'video'
         ? <VideoFeed focusVideo={focusVideo} />
-        : <FeedGrid />}
+        : <FeedGrid onSelectVideo={onSelectVideo} />}
     </div>
   )
 }

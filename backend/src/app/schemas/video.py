@@ -29,6 +29,7 @@ class FeedItem(BaseModel):
     allow_comments: bool
     created_at: datetime
     view_count: int = 0
+    owner_name: str | None = None
 
 
 class VideoViewResponse(BaseModel):

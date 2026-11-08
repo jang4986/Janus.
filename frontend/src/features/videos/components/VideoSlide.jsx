@@ -385,7 +385,7 @@ export default function VideoSlide({
 
       <div className="slide-meta">
         <div className="slide-user-row">
-          <span className="slide-user">@{video.owner_name || 'janus'}</span>
+          <span className="slide-user">@{video.author?.username || video.owner_name || video.username || 'janus'}</span>
           <button
             type="button"
             className={`slide-follow ${followed ? 'active' : ''}`}

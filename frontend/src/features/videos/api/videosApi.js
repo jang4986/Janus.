@@ -37,7 +37,9 @@ export function searchVideosByTag(tag, { limit = 12, cursor } = {}) {
 }
 
 export function searchVideosByDescription(description, { limit = 12, cursor } = {}) {
-  const query = new URLSearchParams({ description, limit: String(limit) })
+  // Backend /v1/videos/search only accepts the `tag` query param; description
+  // search is routed through the same tag endpoint.
+  const query = new URLSearchParams({ tag: description, limit: String(limit) })
   if (cursor) query.set('cursor', cursor)
   return apiFetch(`/v1/videos/search?${query}`, { auth: false })
 }

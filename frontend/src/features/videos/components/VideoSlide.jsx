@@ -58,6 +58,7 @@ export default function VideoSlide({
   const [bookmarked, setBookmarked] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [captionExpanded, setCaptionExpanded] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [seeking, setSeeking] = useState(false)

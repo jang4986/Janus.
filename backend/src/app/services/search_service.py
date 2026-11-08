@@ -114,7 +114,7 @@ def search_published_videos_by_tag(
             author=SearchTagAuthor(
                 id=video.owner.id,
                 username=(
-                    f"{video.owner.display_name}#{video.owner.discriminator}"
+                    f"{video.owner.display_name} #{video.owner.discriminator}"
                 ),
                 avatar_url=video.owner.avatar_url,
             ),

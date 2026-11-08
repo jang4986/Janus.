@@ -205,7 +205,7 @@ export default function EditVideoPage() {
             Hủy
           </button>
           {isPublished && (
-            <Link to="/" className="button ghost">
+            <Link to={`/?video_id=${selectedVideo.id}`} className="button ghost">
               Xem ở feed <Icon name="arrow" size={14} />
             </Link>
           )}

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 
+import { fetchMyVideos } from '@/features/videos/api/videosApi'
 import VideoFeed from '@/features/videos/components/VideoFeed'
 import FeedGrid from '@/features/videos/components/FeedGrid'
 import Icon from '@/shared/components/Icon'
@@ -9,7 +10,25 @@ export default function FeedPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tag = searchParams.get('tag')?.trim()
   const [focusedVideo, setFocusedVideo] = useState(null)
+  const [myVideosLoaded, setMyVideosLoaded] = useState(false)
   const view = searchParams.get('view') === 'grid' ? 'grid' : 'video'
+
+  const videoId = searchParams.get('video_id')
+
+  useEffect(() => {
+    if (!videoId || focusedVideo || myVideosLoaded) return
+    fetchMyVideos()
+      .then((items) => {
+        const found = items.find((video) => video.id === videoId)
+        if (found) {
+          setFocusedVideo(found)
+          const nextParams = new URLSearchParams(searchParams)
+          nextParams.set('view', 'video')
+          setSearchParams(nextParams, { replace: true })
+        }
+      })
+      .finally(() => setMyVideosLoaded(true))
+  }, [searchParams, videoId, focusedVideo, myVideosLoaded])
 
   function setView(nextView) {
     const nextParams = new URLSearchParams(searchParams)

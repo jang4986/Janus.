@@ -13,7 +13,6 @@ const NAV_ITEMS = [
 ]
 
 const SEARCH_HISTORY = ['video ngắn', 'kiểm duyệt', 'janus']
-const SEARCH_SUGGEST = ['video hot', 'nội dung mới', 'xu hướng']
 
 export default function SideNav() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -24,7 +23,7 @@ export default function SideNav() {
   function searchTag(value = searchText) {
     const tag = value.trim().replace(/^#/, '')
     if (!tag) return
-    navigate(`/?tag=${encodeURIComponent(tag)}`)
+    navigate(`/?description=${encodeURIComponent(tag)}`)
     setSearchText(tag)
     setSearchOpen(false)
   }
@@ -52,15 +51,6 @@ export default function SideNav() {
               {SEARCH_HISTORY.map((item) => (
                 <button key={item} type="button" className="search-item" onMouseDown={(event)=>event.preventDefault()} onClick={()=>searchTag(item)}>
                   <Icon name="clock" size={14} />
-                  <span>{item}</span>
-                </button>
-              ))}
-            </div>
-            <div className="search-section">
-              <div className="search-section-title">Gợi ý</div>
-              {SEARCH_SUGGEST.map((item) => (
-                <button key={item} type="button" className="search-item" onMouseDown={(event)=>event.preventDefault()} onClick={()=>searchTag(item)}>
-                  <Icon name="search" size={14} />
                   <span>{item}</span>
                 </button>
               ))}

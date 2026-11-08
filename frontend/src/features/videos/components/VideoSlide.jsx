@@ -7,6 +7,7 @@ import CommentDrawer from './CommentDrawer'
 import { toggleLike, toggleFollow, toggleBookmark } from '../api/socialApi'
 import { streamUrl, thumbnailUrl } from '../api/videosApi'
 import { useAuth } from '@/features/auth/AuthContext'
+import { formatDateTime } from '@/shared/lib/format'
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
@@ -385,7 +386,7 @@ export default function VideoSlide({
 
       <div className="slide-meta">
         <div className="slide-user-row">
-          <span className="slide-user">@{video.owner_name || 'janus'}</span>
+          <span className="slide-user">@{video.author?.username || video.owner_name || video.username || 'janus'}</span>
           <button
             type="button"
             className={`slide-follow ${followed ? 'active' : ''}`}
@@ -398,6 +399,10 @@ export default function VideoSlide({
         <div className="slide-view">
           <Icon name="play" size={12} />
           <span>{formatViewCount(currentViews)} lượt xem</span>
+        </div>
+        <div className="slide-date">
+          <Icon name="clock" size={12} />
+          <span>Đăng {formatDateTime(video.created_at)}</span>
         </div>
         <p className="slide-caption">{video.caption || 'Không có mô tả'}</p>
       </div>

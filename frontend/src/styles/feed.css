@@ -132,7 +132,7 @@
 
 .slide-meta {
   position: absolute;
-  left: calc(var(--sidebar-width) + 12px);
+  left: calc(var(--sidebar-width)*0.1 + 6px);
   bottom: 65px;
   max-width: min(440px, 40%);
   z-index: 2;

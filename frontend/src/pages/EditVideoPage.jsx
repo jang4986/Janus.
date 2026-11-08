@@ -190,9 +190,9 @@ export default function EditVideoPage() {
               <span>{formatViewCount(selectedVideo.view_count ?? selectedVideo.views ?? selectedVideo.play_count ?? 0)} lượt xem</span>
             </div>
             <p className={`preview-caption ${expanded ? '' : 'truncate-2'}`}>
-              {selectedVideo.caption || 'Không có mô tả'}
+              {title || 'Không có mô tả'}
             </p>
-            {selectedVideo.caption && selectedVideo.caption.length > 80 && !expanded && (
+            {title && title.length > 80 && !expanded && (
               <button type="button" className="preview-expand" onClick={() => setExpanded(true)}>
                 (...)
               </button>

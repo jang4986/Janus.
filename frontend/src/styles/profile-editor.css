@@ -9,8 +9,8 @@
 .edit-card{grid-column:1/2;max-height:560px;overflow:auto}
 .preview-card{grid-column:2/3;max-height:560px;display:flex;flex-direction:column;overflow:hidden;background:#1e1e1e;border-radius:var(--radius)}
 .preview-card .card-body{display:flex;flex-direction:column;gap:12px}
-.preview-thumb{width:100%;height:auto;display:flex;justify-content:center;align-items:center}
-.preview-thumb video{width:auto;height:auto;max-height:320px;object-fit:contain;display:block}
+.preview-thumb{width:100%;height:auto;min-height:140px;display:flex;justify-content:center;align-items:center}
+.preview-thumb video{width:auto;height:auto;max-width:100%;max-height:320px;object-fit:contain;display:block}
 .status-banner{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;margin-top:14px;border-radius:var(--radius);background:rgba(254,44,85,.1);border:1px solid rgba(254,44,85,.25);color:var(--text);font-size:12.5px;line-height:1.5}
 .status-banner--pending{background:rgba(255,176,32,.1);border-color:rgba(255,176,32,.25)}
 .status-banner svg{margin-top:2px;color:currentColor;flex-shrink:0}
@@ -24,7 +24,7 @@
 .preview-meta{padding:16px 20px;display:flex;flex-direction:column;gap:10px;color:var(--text)}
 .preview-user-row{display:flex;align-items:center;gap:10px}
 .preview-user{font-weight:600;font-size:14px}
-.preview-follow{font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:var(--radius);background:transparent;color:var(--text);cursor:pointer}
+.preview-follow{font-size:12px;padding:4px 12px;border:1px solid rgba(254,44,85,0.9);border-radius:999px;background:transparent;color:#fff;cursor:pointer}
 .preview-follow.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .preview-view{display:flex;align-items:center;gap:6px;margin-top:4px;color:var(--text-dim);font-size:12px}
 .preview-caption{margin:0;font-size:14px;line-height:1.6;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical}

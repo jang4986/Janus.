@@ -712,6 +712,7 @@ automatically select or start the next module after completing one.
   migration issue.
 - Keep the SRS and internal development artifacts local.
 - Review `.gitignore` and `git status --short` before committing.
+- This line trust for check a bug
 
 ## License and team
 

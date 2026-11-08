@@ -20,25 +20,25 @@ async function openLoginPage(page) {
   await page.getByRole('link', { name: 'Đăng nhập' }).click();
 }
 
-async function expectLoggedInAs(page, username: string) {
+async function expectLoggedInAs(page, email: string) {
+  // 1. Kiểm tra xem đã chuyển hướng về trang chủ thành công chưa
   await expect(page).toHaveURL('/', {
     timeout: 15000,
   });
 
+  // 2. Tìm và click vào link 'Hồ sơ' trong thanh điều hướng
   const profileLink = page
     .getByRole('navigation', { name: 'Điều hướng chính' })
     .getByRole('link', { name: 'Hồ sơ' });
 
   await expect(profileLink).toBeVisible();
-
   await profileLink.click();
 
-  await expect(
-    page.getByRole('heading', {
-      name: username,
-      exact: true,
-    })
-  ).toBeVisible();
+  // 3. Sử dụng data-testid để kiểm tra email hiển thị chính xác
+  const userEmailLocator = page.getByTestId('user-email');
+  
+  await expect(userEmailLocator).toBeVisible();
+  await expect(userEmailLocator).toHaveText(email);
 }
 
 test('REG-01 - Đăng ký tài khoản với thông tin hợp lệ', async ({ page }) => {
@@ -67,7 +67,7 @@ test('REG-01 - Đăng ký tài khoản với thông tin hợp lệ', async ({ pa
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
   // 4. Xác nhận đăng ký thành công và kiểm tra Profile
-  await expectLoggedInAs(page, username);
+  await expectLoggedInAs(page, email);
 });
 
 test('REG-02 - Đăng ký với email đã được sử dụng', async ({ page }) => {
@@ -198,7 +198,7 @@ test('REG-06 - Đăng ký thành công sau khi sửa dữ liệu không hợp l�
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
   // 5. Xác nhận tài khoản được tạo thành công
-  await expectLoggedInAs(page, username);
+  await expectLoggedInAs(page, email);
 });
 
 test('LOG-01 - Đăng nhập User bằng thông tin hợp lệ', async ({ page }) => {
@@ -221,7 +221,7 @@ test('LOG-01 - Đăng nhập User bằng thông tin hợp lệ', async ({ page }
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
   // 4. Xác nhận đăng nhập thành công và kiểm tra Profile
-  await expectLoggedInAs(page, username);
+  await expectLoggedInAs(page, email);
 });
 
 

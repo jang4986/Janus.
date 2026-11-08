@@ -4,6 +4,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '@/shared/components/Icon'
 import { ErrorNote, Spinner } from '@/shared/components/Feedback'
 import { fetchMyVideos, streamUrl, thumbnailUrl, updateVideo } from '@/features/videos/api/videosApi'
+import { toggleFollow } from '@/features/videos/api/socialApi'
+import { useAuth } from '@/features/auth/AuthContext'
+import { formatViewCount } from '@/shared/lib/format'
 import '@/styles/profile-editor.css'
 
 export default function EditVideoPage() {
@@ -17,6 +20,9 @@ export default function EditVideoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [followed, setFollowed] = useState(false)
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
     fetchMyVideos()
@@ -29,6 +35,7 @@ export default function EditVideoPage() {
           setTitle(selected.caption || selected.original_filename || '')
           setVisibility(selected.visibility || 'public')
           setAllowComments(selected.allow_comments !== false)
+          setFollowed(Boolean(selected.is_followed))
         } else {
           setError('Không tìm thấy video.')
         }
@@ -48,6 +55,18 @@ export default function EditVideoPage() {
       setError(requestError.detail || requestError.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleFollow() {
+    if (!isAuthenticated || !selectedVideo?.owner_id) return
+    const previous = followed
+    setFollowed(!previous)
+    try {
+      const result = await toggleFollow(selectedVideo.owner_id)
+      setFollowed(Boolean(result.is_following))
+    } catch {
+      setFollowed(previous)
     }
   }
 
@@ -153,6 +172,31 @@ export default function EditVideoPage() {
               playsInline
               preload="metadata"
             />
+          </div>
+          <div className="preview-meta">
+            <div className="preview-user-row">
+              <span className="preview-user">@{selectedVideo.owner_name || 'janus'}</span>
+              <button
+                type="button"
+                className={`preview-follow ${followed ? 'active' : ''}`}
+                onClick={handleFollow}
+                disabled={!isAuthenticated || !selectedVideo.owner_id}
+              >
+                {followed ? 'Đang theo dõi' : 'Theo dõi'}
+              </button>
+            </div>
+            <div className="preview-view">
+              <Icon name="play" size={12} />
+              <span>{formatViewCount(selectedVideo.view_count ?? selectedVideo.views ?? selectedVideo.play_count ?? 0)} lượt xem</span>
+            </div>
+            <p className={`preview-caption ${expanded ? '' : 'truncate-2'}`}>
+              {selectedVideo.caption || 'Không có mô tả'}
+            </p>
+            {selectedVideo.caption && selectedVideo.caption.length > 80 && !expanded && (
+              <button type="button" className="preview-expand" onClick={() => setExpanded(true)}>
+                (...)
+              </button>
+            )}
           </div>
         </aside>
 

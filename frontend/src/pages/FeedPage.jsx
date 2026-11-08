@@ -8,7 +8,7 @@ import Icon from '@/shared/components/Icon'
 
 export default function FeedPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const tag = searchParams.get('tag')?.trim()
+  const description = searchParams.get('description')?.trim()
   const [focusedVideo, setFocusedVideo] = useState(null)
   const [myVideosLoaded, setMyVideosLoaded] = useState(false)
   const view = searchParams.get('view') === 'grid' ? 'grid' : 'video'
@@ -42,12 +42,12 @@ export default function FeedPage() {
     setView('video')
   }
 
-  if (tag) {
+  if (description) {
     return (
       <div className="feed-page">
         <div className="feed-page-header">
           <div className="feed-tabs">
-            <span className="feed-tab active">Kết quả: {tag}</span>
+            <span className="feed-tab active">Kết quả: {description}</span>
           </div>
           {focusedVideo ? (
             <button type="button" className="button ghost small" onClick={() => setFocusedVideo(null)}>
@@ -63,7 +63,7 @@ export default function FeedPage() {
         </div>
         {focusedVideo
           ? <VideoFeed focusVideo={focusedVideo} />
-          : <FeedGrid activeTag={tag} onSelectVideo={selectGridVideo} />}
+          : <FeedGrid activeDescription={description} onSelectVideo={selectGridVideo} />}
       </div>
     )
   }

@@ -36,6 +36,12 @@ export function searchVideosByTag(tag, { limit = 12, cursor } = {}) {
   return apiFetch(`/v1/videos/search?${query}`, { auth: false })
 }
 
+export function searchVideosByDescription(description, { limit = 12, cursor } = {}) {
+  const query = new URLSearchParams({ description, limit: String(limit) })
+  if (cursor) query.set('cursor', cursor)
+  return apiFetch(`/v1/videos/search?${query}`, { auth: false })
+}
+
 export function reportVideo(videoId, reason) {
   return apiFetch(`/v1/videos/${videoId}/reports`, { method: 'POST', body: { reason } })
 }

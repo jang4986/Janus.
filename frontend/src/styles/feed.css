@@ -201,6 +201,15 @@
   font-size: 12px;
 }
 
+.slide-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
 .slide-actions {
   position: absolute;
   right: 18px;

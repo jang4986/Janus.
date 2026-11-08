@@ -33,8 +33,31 @@ export default defineConfig({
 
   projects: [
     {
+      name: 'setup-user',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /video-search\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'video-authenticated',
+
+      testMatch: /video-search\.spec\.ts/,
+
+      dependencies: ['setup-user'],
+
+      use: {
+        ...devices['Desktop Chrome'],
+
+        storageState: 'playwright/.auth/user.json',
+      },
     },
   ],
 });

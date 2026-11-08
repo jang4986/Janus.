@@ -80,6 +80,7 @@ export default function AuthCard({ mode }) {
               value={form.displayName}
               onChange={update('displayName')}
               maxLength={120}
+              required
               autoComplete="name"
               placeholder="Nguyễn Văn A"
             />
@@ -93,6 +94,7 @@ export default function AuthCard({ mode }) {
             type="email"
             value={form.email}
             onChange={update('email')}
+            required
             autoComplete="email"
             placeholder="ban@example.com"
           />
@@ -105,6 +107,7 @@ export default function AuthCard({ mode }) {
             type="password"
             value={form.password}
             onChange={update('password')}
+            required
             autoComplete={isRegister ? 'new-password' : 'current-password'}
             placeholder="Tối thiểu 8 ký tự"
           />

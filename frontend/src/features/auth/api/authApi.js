@@ -74,3 +74,10 @@ export function fetchProfile() {
 export function updateProfile(payload) {
   return apiFetch('/v1/profile', { method: 'PATCH', body: payload })
 }
+
+/** Tải lên ảnh đại diện, trả về hồ sơ người dùng đã cập nhật. */
+export function updateAvatar(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return apiFetch('/v1/profile/avatar', { method: 'POST', body: form })
+}

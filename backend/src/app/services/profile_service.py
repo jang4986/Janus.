@@ -2,15 +2,18 @@
 
 import secrets
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.exceptions import ConflictError, InvalidInputError
 from app.models import RefreshToken, User
 from app.schemas import ChangePasswordRequest, ProfileUpdate
+from app.services.storage_service import get_storage_service
 
 MAX_DISCRIMINATOR = 9999
 DISCRIMINATOR_RETRIES = 20
@@ -84,3 +87,20 @@ def change_password(
         .values(revoked_at=now)
     )
     db.commit()
+
+
+def update_avatar(
+    db: Session, user: User, file_content: bytes, filename: str, content_type: str
+) -> User:
+    """Tải lên avatar mới, lưu URL và cập nhật user.avatar_url."""
+    storage = get_storage_service()
+    settings = get_settings()
+    file_key = f"avatars/{user.id}/{filename}"
+    storage.upload_file(file_key, file_content, content_type)
+    if settings.storage_driver.strip().lower() == "s3":
+        user.avatar_url = storage.get_stream_url(file_key, public=True)
+    else:
+        user.avatar_url = f"/api/v1/profile/avatar/{user.id}"
+    db.commit()
+    db.refresh(user)
+    return user

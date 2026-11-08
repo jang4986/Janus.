@@ -43,11 +43,8 @@ export default function UploadPage() {
     <main className="page upload-page">
       <header className="upload-heading">
         <div>
-          <span className="overline">GÓC SÁNG TẠO</span>
-          <h1>Tải video lên</h1>
           <p>Chia sẻ một khoảnh khắc mới với cộng đồng Janus.</p>
         </div>
-        <span className="upload-format-chip"><Icon name="film" size={15} /> MP4 <i /> Tối đa 50 MB</span>
       </header>
       <div className="upload-grid">
         <form className="panel upload-panel" onSubmit={submit}>
@@ -57,7 +54,7 @@ export default function UploadPage() {
             <span>
               Mô tả video <em>không bắt buộc</em>
             </span>
-            <input
+            <textarea
               id="caption"
               className="text-input"
               value={caption}
@@ -65,6 +62,7 @@ export default function UploadPage() {
               onChange={(event) => setCaption(event.target.value)}
               placeholder="Video này nói về điều gì?"
               disabled={uploading}
+              style={{ height: '200px', resize: 'none', overflowY: 'auto' }}
             />
           </label>
 

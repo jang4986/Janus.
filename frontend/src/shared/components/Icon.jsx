@@ -26,7 +26,7 @@ const PATHS = {
   message: 'M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z',
   bookmark: 'M6 4h12v17l-6-4-6 4V4Z',
   edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z',
-  expand: 'M4 9V4h5m11 0h-5v5M4 15v5h5m11 0h-5v-5',
+  expand: 'M15 3h6v6 M21 3l-7 7 M9 21H3v-6 M3 21l7-7 M21 15v6h-6 M21 21l-7-7 M3 9V3h6 M3 3l7 7',
 }
 
 const FILLED = new Set(['heart-filled'])

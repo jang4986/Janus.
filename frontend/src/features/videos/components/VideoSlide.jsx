@@ -7,6 +7,14 @@ import CommentDrawer from './CommentDrawer'
 import { toggleLike, toggleFollow, toggleBookmark } from '../api/socialApi'
 import { streamUrl, thumbnailUrl } from '../api/videosApi'
 import { useAuth } from '@/features/auth/AuthContext'
+import { formatDateTime } from '@/shared/lib/format'
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
 
 function formatViewCount(num) {
   const n = Number(num) || 0
@@ -51,6 +59,10 @@ export default function VideoSlide({
   const [bookmarked, setBookmarked] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [captionExpanded, setCaptionExpanded] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [seeking, setSeeking] = useState(false)
   const [currentViews, setCurrentViews] = useState(
     Number(video.view_count ?? video.views ?? video.play_count ?? 0)
   )
@@ -114,6 +126,7 @@ export default function VideoSlide({
       shouldPlayRef.current = false
       element.pause()
       element.currentTime = 0
+      setCurrentTime(0)
       setPlaying(false)
     }
   }, [isActive])
@@ -263,7 +276,9 @@ export default function VideoSlide({
 
   function handleTimeUpdate() {
     const el = videoRef.current
-    if (!el || !isActive || hasCountedRef.current) return
+    if (!el || !isActive) return
+    setCurrentTime(el.currentTime)
+    if (hasCountedRef.current) return
     // Điều kiện 1: Đã xem liên tục từ 5 giây trở lên
     if (el.currentTime >= 5) {
       triggerCountView()
@@ -288,10 +303,60 @@ export default function VideoSlide({
 
   const likeCount = video.likes || video.like_count || 0
 
+  function handleSeekStart(e) {
+    const el = videoRef.current
+    if (!el) return
+    setSeeking(true)
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left
+    const time = (x / rect.width) * el.duration
+    el.currentTime = time
+    setCurrentTime(time)
+  }
+
+  function handleSeekMove(e) {
+    const el = videoRef.current
+    if (!el || !seeking) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left
+    const time = (x / rect.width) * el.duration
+    el.currentTime = time
+    setCurrentTime(time)
+  }
+
+  function handleSeekEnd() {
+    setSeeking(false)
+  }
+
   return (
     <article className="slide" ref={containerRef}>
       <div className="slide-stage">
         <div className="slide-video-frame">
+          <div className="video-progress-wrapper" onClick={togglePlayback}>
+            <div className="video-progress-time">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+            <div
+              className="video-progress-track"
+              onMouseDown={handleSeekStart}
+              onMouseMove={handleSeekMove}
+              onMouseUp={handleSeekEnd}
+              onMouseLeave={handleSeekEnd}
+              onTouchStart={(e) => handleSeekStart(e.nativeEvent)}
+              onTouchMove={(e) => handleSeekMove(e.nativeEvent)}
+              onTouchEnd={handleSeekEnd}
+            >
+              <div
+                className={`video-progress-bar ${seeking ? 'seeking' : ''}`}
+                style={{
+                  width: duration
+                    ? `${Math.min(100, (currentTime / duration) * 100)}%`
+                    : '0%',
+                }}
+              />
+            </div>
+          </div>
           <video
             ref={videoRef}
             src={source}
@@ -299,7 +364,6 @@ export default function VideoSlide({
             loop
             playsInline
             autoPlay={isActive}
-            controls
             muted={muted}
             preload={isActive ? 'auto' : 'none'}
             onPlay={() => setPlaying(true)}
@@ -308,6 +372,8 @@ export default function VideoSlide({
             onEnded={handleEnded}
             onError={handleMediaError}
             onCanPlay={handleCanPlay}
+            onDurationChange={(e) => setDuration(e.target.duration)}
+            onLoadedMetadata={(e) => setDuration(e.target.duration)}
           />
         </div>
         {!playing && (
@@ -320,7 +386,7 @@ export default function VideoSlide({
 
       <div className="slide-meta">
         <div className="slide-user-row">
-          <span className="slide-user">@{video.owner_name || 'janus'}</span>
+          <span className="slide-user">@{video.author?.username || video.owner_name || video.username || 'janus'}</span>
           <button
             type="button"
             className={`slide-follow ${followed ? 'active' : ''}`}
@@ -334,7 +400,11 @@ export default function VideoSlide({
           <Icon name="play" size={12} />
           <span>{formatViewCount(currentViews)} lượt xem</span>
         </div>
-        <p className="slide-caption">{video.caption || video.original_filename}</p>
+        <div className="slide-date">
+          <Icon name="clock" size={12} />
+          <span>Đăng {formatDateTime(video.created_at)}</span>
+        </div>
+        <p className="slide-caption">{video.caption || 'Không có mô tả'}</p>
       </div>
 
       <div className="slide-actions">

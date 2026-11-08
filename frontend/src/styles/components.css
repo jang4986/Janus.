@@ -287,6 +287,8 @@ textarea.text-input {
 
 .modal-body {
   padding: 18px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .modal-text {

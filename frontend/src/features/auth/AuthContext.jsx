@@ -63,6 +63,12 @@ export function AuthProvider({ children }) {
     return profile
   }, [])
 
+  const updateAvatar = useCallback(async (file) => {
+    const profile = await authApi.updateAvatar(file)
+    setUser(profile)
+    return profile
+  }, [])
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken()
     try {
@@ -75,8 +81,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, ready, isAuthenticated: Boolean(user), login, register, updateProfile, logout }),
-    [user, ready, login, register, updateProfile, logout],
+    () => ({ user, ready, isAuthenticated: Boolean(user), login, register, updateProfile, updateAvatar, logout }),
+    [user, ready, login, register, updateProfile, updateAvatar, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

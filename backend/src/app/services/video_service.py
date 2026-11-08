@@ -160,6 +160,7 @@ def list_published_feed(
             allow_comments=video.allow_comments,
             created_at=video.created_at,
             view_count=getattr(video, "view_count", 0) or 0,
+            owner_name=video.owner_name,
         )
         for video in items
     ]

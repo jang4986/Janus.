@@ -190,7 +190,8 @@
 }
 
 .ai-head h2 {
-  font-size: 16px;
+  font-size: 20px;
+  letter-spacing: -0.4px;
 }
 
 .ai-state {

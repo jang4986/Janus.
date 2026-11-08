@@ -58,7 +58,7 @@ def authenticate(db: Session, payload: LoginRequest) -> User:
     """Xác thực bằng email + mật khẩu; sai thông tin là 401."""
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
-        raise UnauthorizedError("Email hoặc mật khẩu không chính xác")
+        raise UnauthorizedError("Tài khoản hoặc mật khẩu không chính xác")
     return user
 
 

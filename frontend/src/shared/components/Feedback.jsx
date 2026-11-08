@@ -17,7 +17,7 @@ export function Modal({ title, onClose, children }) {
             <Icon name="x" size={16} />
           </button>
         </div>
-        {children}
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Icon from '@/shared/components/Icon'
-import { fetchFeed, searchVideosByTag, thumbnailUrl } from '../api/videosApi'
+import { fetchFeed, searchVideosByDescription, thumbnailUrl } from '../api/videosApi'
 
 function keepPublishedVideos(items = []) {
   return items.filter((video) => (
@@ -12,7 +12,7 @@ function keepPublishedVideos(items = []) {
   ))
 }
 
-export default function FeedGrid({ activeTag = '', onSelectVideo }) {
+export default function FeedGrid({ activeDescription = '', onSelectVideo }) {
   const [videos, setVideos] = useState([])
   const [cursor, setCursor] = useState(null)
   const [hasMore, setHasMore] = useState(false)
@@ -21,11 +21,11 @@ export default function FeedGrid({ activeTag = '', onSelectVideo }) {
   const [error, setError] = useState('')
 
   const fetchPage = useCallback(async (nextCursor = null) => {
-    const request = activeTag
-      ? searchVideosByTag(activeTag, { limit: 12, cursor: nextCursor })
+    const request = activeDescription
+      ? searchVideosByDescription(activeDescription, { limit: 12, cursor: nextCursor })
       : fetchFeed({ limit: 12, cursor: nextCursor })
     return request
-  }, [activeTag])
+  }, [activeDescription])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -63,14 +63,14 @@ export default function FeedGrid({ activeTag = '', onSelectVideo }) {
 
   if (loading) return <div className="feed-grid-empty">Đang tải video…</div>
   if (error && videos.length === 0) return <div className="feed-grid-empty"><span>{error}</span><button type="button" className="button ghost" onClick={refresh}>Thử lại</button></div>
-  if (!videos.length) return <div className="feed-grid-empty">{activeTag ? `Không tìm thấy video phù hợp với “${activeTag}”.` : 'Chưa có video nào được đăng'}</div>
+  if (!videos.length) return <div className="feed-grid-empty">{activeDescription ? `Không tìm thấy video phù hợp với “${activeDescription}”.` : 'Chưa có video nào được đăng'}</div>
 
   return (
     <div className="feed-grid-scroll">
       <div className="feed-grid">
         {videos.map((video) => {
           const authorName = video.author?.username || video.owner_name || video.username || 'janus'
-          const title = video.caption || video.original_filename || 'Video không tiêu đề'
+          const title = video.caption || 'Không có mô tả'
           return (
             <button
               key={video._loopKey || video.id}

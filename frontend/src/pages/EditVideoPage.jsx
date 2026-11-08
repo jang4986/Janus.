@@ -6,7 +6,7 @@ import { ErrorNote, Spinner } from '@/shared/components/Feedback'
 import { fetchMyVideos, streamUrl, thumbnailUrl, updateVideo } from '@/features/videos/api/videosApi'
 import { toggleFollow } from '@/features/videos/api/socialApi'
 import { useAuth } from '@/features/auth/AuthContext'
-import { formatViewCount, formatDateTime } from '@/shared/lib/format'
+import { formatViewCount } from '@/shared/lib/format'
 import '@/styles/profile-editor.css'
 
 export default function EditVideoPage() {
@@ -189,10 +189,6 @@ export default function EditVideoPage() {
               <Icon name="play" size={12} />
               <span>{formatViewCount(selectedVideo.view_count ?? selectedVideo.views ?? selectedVideo.play_count ?? 0)} lượt xem</span>
             </div>
-            <div className="preview-date">
-              <Icon name="clock" size={12} />
-              <span>Đăng {formatDateTime(selectedVideo.created_at)}</span>
-            </div>
             <p className={`preview-caption ${expanded ? '' : 'truncate-2'}`}>
               {title || 'Không có mô tả'}
             </p>
@@ -209,7 +205,7 @@ export default function EditVideoPage() {
             Hủy
           </button>
           {isPublished && (
-            <Link to={`/?video_id=${selectedVideo.id}`} className="button ghost">
+            <Link to="/" className="button ghost">
               Xem ở feed <Icon name="arrow" size={14} />
             </Link>
           )}

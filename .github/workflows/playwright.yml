@@ -1,80 +1,133 @@
-name: Playwright E2E Tests
+
+name: Playwright Tests
 
 on:
-  push:
-    branches: [main]
-
   pull_request:
-    branches: [main]
-
+    branches: [main, master]
+  workflow_dispatch:
 jobs:
-  e2e:
+  test:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
-      # 1. Lấy source code
+      # 1. Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Cài Node.js
+      # 2. Setup Node.js và npm
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: lts/*
           cache: npm
 
-      # 3. Cài dependencies
+      # 3. Install uv
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      # 4. Kiểm tra môi trường
+      - name: Check environment
+        run: |
+          node --version
+          npm --version
+          uv --version
+
+      # 5. Install root dependencies (Playwright)
       - name: Install dependencies
         run: npm ci
 
-      # 4. Cài Chromium cho Playwright
-      - name: Install Playwright browsers
+      # 6. Install Playwright browsers
+      - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
-      # 5. Khởi chạy ứng dụng
-      - name: Start Janus application
-        run: |
-          chmod +x ./run_dev.sh
-          ./run_dev.sh > /tmp/janus.log 2>&1 &
-
-      # 6. Chờ Frontend sẵn sàng
-      - name: Wait for frontend
-        run: |
-          for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:5173/ > /dev/null; then
-              echo "Frontend is ready"
-              exit 0
-            fi
-            sleep 2
-          done
-
-          cat /tmp/janus.log
-          exit 1
-
-      # 7. Chạy Playwright
-      - name: Run Playwright tests
+      # 7. Start Janus và chạy Playwright
+      - name: Start Janus and run Playwright tests
         env:
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_MODERATOR_EMAIL: ${{ secrets.E2E_MODERATOR_EMAIL }}
           E2E_MODERATOR_PASSWORD: ${{ secrets.E2E_MODERATOR_PASSWORD }}
-        run: npx playwright test
 
-      # 8. Lưu báo cáo
+          # Thêm các biến môi trường Backend tại đây
+          # nếu ứng dụng yêu cầu chúng để kết nối Database,
+          # AI Service hoặc các dịch vụ phụ thuộc.
+
+        run: |
+          set -euo pipefail
+
+          chmod +x ./run_dev.sh
+
+          # Khởi chạy Janus ở background
+          ./run_dev.sh > /tmp/janus.log 2>&1 &
+          JANUS_PID=$!
+
+          # Dọn dẹp hệ thống sau khi test kết thúc
+          cleanup() {
+            echo "Stopping Janus..."
+
+            kill -TERM "$JANUS_PID" 2>/dev/null || true
+            wait "$JANUS_PID" 2>/dev/null || true
+          }
+
+          trap cleanup EXIT
+
+          # Hàm chờ service sẵn sàng
+          wait_for_service() {
+            local name="$1"
+            local url="$2"
+
+            echo "Waiting for $name..."
+
+            for i in $(seq 1 60); do
+              if curl -fsS "$url" > /dev/null 2>&1; then
+                echo "$name is ready!"
+                return 0
+              fi
+
+              # Kiểm tra runner có bị dừng bất ngờ không
+              if ! kill -0 "$JANUS_PID" 2>/dev/null; then
+                echo "Janus process exited unexpectedly."
+                cat /tmp/janus.log
+                return 1
+              fi
+
+              sleep 2
+            done
+
+            echo "$name failed to start."
+            cat /tmp/janus.log
+            return 1
+          }
+
+          # Chờ Backend và Frontend
+          wait_for_service "Backend" "http://127.0.0.1:8000/docs"
+          wait_for_service "Frontend" "http://127.0.0.1:5173/"
+
+          # Chạy toàn bộ Test Suite
+          npx playwright test
+
+      # 8. Upload Playwright report
       - name: Upload Playwright report
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: |
             playwright-report/
             test-results/
-          retention-days: 14
+          retention-days: 30
 
-      # 9. Lưu log khởi chạy nếu có lỗi
-      - name: Upload application logs
+      # 9. Upload application logs nếu thất bại
+      - name: Upload Janus logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: janus-logs
           path: /tmp/janus.log
+          retention-days: 7

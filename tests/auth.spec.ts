@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 
 const EXISTING_USER = {
   username: 'Nguyen Van A',
-  email: 'nguyenvana@gmail.com',
-  password: 'qwe123!@#',
+  email: process.env.E2E_USER_EMAIL!,
+  password: process.env.E2E_USER_PASSWORD!,
 };
 
 async function openRegisterPage(page) {

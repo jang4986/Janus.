@@ -4,80 +4,151 @@ name: Playwright Tests
 on:
   pull_request:
     branches: [main, master]
+
   workflow_dispatch:
+
+# Chỉ cấp quyền đọc source code
+permissions:
+  contents: read
+
+# Hủy lần chạy cũ nếu cùng PR được cập nhật
+concurrency:
+  group: playwright-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    timeout-minutes: 60
+    name: Janus E2E Testing
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
+    timeout-minutes: 60
 
     steps:
+      # ========================================
       # 1. Checkout source code
+      # ========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js và npm
+      # ========================================
+      # 2. Setup Node.js
+      # ========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
+          cache-dependency-path: package-lock.json
 
-      # 3. Install uv
+      # ========================================
+      # 3. Setup uv
+      # ========================================
       - name: Setup uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          cache-dependency-glob: |
+            backend/uv.lock
 
-      # 4. Kiểm tra môi trường
+      # ========================================
+      # 4. Check development environment
+      # ========================================
       - name: Check environment
         run: |
           node --version
           npm --version
           uv --version
+          python3 --version
 
-      # 5. Install root dependencies (Playwright)
+      # ========================================
+      # 5. Install root dependencies
+      # ========================================
       - name: Install dependencies
         run: npm ci
 
+      # ========================================
       # 6. Install Playwright browsers
+      # ========================================
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
-      # 7. Start Janus và chạy Playwright
+      # ========================================
+      # 7. Start Janus and run E2E tests
+      # ========================================
       - name: Start Janus and run Playwright tests
         env:
+          # Database - Neon PostgreSQL
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+          # Backend configuration
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          UPLOAD_DIR: ${{ secrets.UPLOAD_DIR }}
+          MAX_UPLOAD_SIZE_BYTES: ${{ secrets.MAX_UPLOAD_SIZE_BYTES }}
+
+          # Storage configuration
+          STORAGE_DRIVER: local
+
+          # CORS configuration
+          CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+
+          # User test account
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+
+          # Moderator test account
           E2E_MODERATOR_EMAIL: ${{ secrets.E2E_MODERATOR_EMAIL }}
           E2E_MODERATOR_PASSWORD: ${{ secrets.E2E_MODERATOR_PASSWORD }}
 
-          # Thêm các biến môi trường Backend tại đây
-          # nếu ứng dụng yêu cầu chúng để kết nối Database,
-          # AI Service hoặc các dịch vụ phụ thuộc.
-
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
+          # ------------------------------------
+          # Validate required environment variables
+          # ------------------------------------
+          required_vars=(
+            DATABASE_URL
+            SECRET_KEY
+            E2E_USER_EMAIL
+            E2E_USER_PASSWORD
+            E2E_MODERATOR_EMAIL
+            E2E_MODERATOR_PASSWORD
+          )
+
+          for var in "${required_vars[@]}"; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::$var is missing from GitHub Secrets"
+              exit 1
+            fi
+          done
+
+          echo "Environment variables are available."
+
+          # ------------------------------------
+          # Start Janus development environment
+          # ------------------------------------
           chmod +x ./run_dev.sh
 
-          # Khởi chạy Janus ở background
           ./run_dev.sh > /tmp/janus.log 2>&1 &
           JANUS_PID=$!
 
-          # Dọn dẹp hệ thống sau khi test kết thúc
+          # ------------------------------------
+          # Cleanup on exit
+          # ------------------------------------
           cleanup() {
             echo "Stopping Janus..."
 
-            kill -TERM "$JANUS_PID" 2>/dev/null || true
-            wait "$JANUS_PID" 2>/dev/null || true
+            if kill -0 "$JANUS_PID" 2>/dev/null; then
+              kill -TERM "$JANUS_PID" 2>/dev/null || true
+              wait "$JANUS_PID" 2>/dev/null || true
+            fi
+
+            echo "Janus stopped."
           }
 
           trap cleanup EXIT
 
-          # Hàm chờ service sẵn sàng
+          # ------------------------------------
+          # Wait for application services
+          # ------------------------------------
           wait_for_service() {
             local name="$1"
             local url="$2"
@@ -85,14 +156,21 @@ jobs:
             echo "Waiting for $name..."
 
             for i in $(seq 1 60); do
+
               if curl -fsS "$url" > /dev/null 2>&1; then
                 echo "$name is ready!"
                 return 0
               fi
 
-              # Kiểm tra runner có bị dừng bất ngờ không
-              if ! kill -0 "$JANUS_PID" 2>/dev/null; then
-                echo "Janus process exited unexpectedly."
+              # Detect terminated startup process
+              if ! ps -p "$JANUS_PID" > /dev/null 2>&1; then
+                echo "::error::Janus exited unexpectedly."
+                cat /tmp/janus.log
+                return 1
+              fi
+
+              if ps -p "$JANUS_PID" -o stat= | grep -q '^Z'; then
+                echo "::error::Janus process terminated."
                 cat /tmp/janus.log
                 return 1
               fi
@@ -100,19 +178,31 @@ jobs:
               sleep 2
             done
 
-            echo "$name failed to start."
+            echo "::error::$name failed to start."
             cat /tmp/janus.log
             return 1
           }
 
-          # Chờ Backend và Frontend
-          wait_for_service "Backend" "http://127.0.0.1:8000/docs"
-          wait_for_service "Frontend" "http://127.0.0.1:5173/"
+          # Backend readiness
+          wait_for_service \
+            "Backend" \
+            "http://127.0.0.1:8000/docs"
 
-          # Chạy toàn bộ Test Suite
+          # Frontend readiness
+          wait_for_service \
+            "Frontend" \
+            "http://127.0.0.1:5173/"
+
+          echo "Janus is ready. Starting Playwright tests..."
+
+          # ------------------------------------
+          # Run Playwright Test Suite
+          # ------------------------------------
           npx playwright test
 
-      # 8. Upload Playwright report
+      # ========================================
+      # 8. Upload Playwright reports
+      # ========================================
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -122,12 +212,16 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 30
+          if-no-files-found: ignore
 
-      # 9. Upload application logs nếu thất bại
-      - name: Upload Janus logs
+      # ========================================
+      # 9. Upload Janus logs on failure
+      # ========================================
+      - name: Upload application logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: janus-logs
           path: /tmp/janus.log
           retention-days: 7
+          if-no-files-found: ignore

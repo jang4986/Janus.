@@ -49,11 +49,7 @@ export default function TopBar() {
             <button type="button" className={feedView === 'grid' ? 'active' : ''} onClick={() => changeFeedView('grid')} aria-pressed={feedView === 'grid'}>Lưới</button>
           </div>
         )}
-        {isAuthenticated ? (
-          <Link to="/profile" className="avatar" aria-label="Hồ sơ">
-            {user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.display_name.slice(0, 2).toUpperCase()}
-          </Link>
-        ) : (
+        {isAuthenticated ? null : (
           <Link to="/login" className="button ghost">
             Đăng nhập
           </Link>

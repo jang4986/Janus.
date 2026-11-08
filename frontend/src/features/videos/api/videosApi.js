@@ -36,6 +36,14 @@ export function searchVideosByTag(tag, { limit = 12, cursor } = {}) {
   return apiFetch(`/v1/videos/search?${query}`, { auth: false })
 }
 
+export function searchVideosByDescription(description, { limit = 12, cursor } = {}) {
+  // Backend /v1/videos/search only accepts the `tag` query param; description
+  // search is routed through the same tag endpoint.
+  const query = new URLSearchParams({ tag: description, limit: String(limit) })
+  if (cursor) query.set('cursor', cursor)
+  return apiFetch(`/v1/videos/search?${query}`, { auth: false })
+}
+
 export function reportVideo(videoId, reason) {
   return apiFetch(`/v1/videos/${videoId}/reports`, { method: 'POST', body: { reason } })
 }

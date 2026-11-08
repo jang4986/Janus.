@@ -1,50 +1,30 @@
 import { useState } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 
 import VideoFeed from '@/features/videos/components/VideoFeed'
 import FeedGrid from '@/features/videos/components/FeedGrid'
-import Icon from '@/shared/components/Icon'
 
 export default function FeedPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tag = searchParams.get('tag')?.trim()
-  const [focusedVideo, setFocusedVideo] = useState(null)
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const description = searchParams.get('description')?.trim()
   const view = searchParams.get('view') === 'grid' ? 'grid' : 'video'
+  const focusVideo = location.state?.focusVideo || null
 
-  function setView(nextView) {
-    const nextParams = new URLSearchParams(searchParams)
-    if (nextView === 'video') nextParams.delete('view')
-    else nextParams.set('view', nextView)
-    setSearchParams(nextParams, { replace: true })
+  function onSelectVideo(video) {
+    navigate(`/?video_id=${encodeURIComponent(video.id)}`, {
+      state: { focusVideo: video },
+    })
   }
 
-  function selectGridVideo(video) {
-    setFocusedVideo(video)
-    setView('video')
-  }
-
-  if (tag) {
+  if (description) {
     return (
       <div className="feed-page">
         <div className="feed-page-header">
-          <div className="feed-tabs">
-            <span className="feed-tab active">Kết quả: {tag}</span>
-          </div>
-          {focusedVideo ? (
-            <button type="button" className="button ghost small" onClick={() => setFocusedVideo(null)}>
-              <Icon name="arrow" size={14} style={{ transform: 'rotate(180deg)' }} />
-              <span>Quay lại lưới</span>
-            </button>
-          ) : (
-            <Link to="/" className="button ghost small" aria-label="Quay lại feed chính">
-              <Icon name="arrow" size={14} style={{ transform: 'rotate(180deg)' }} />
-              <span>Xem feed cuộn</span>
-            </Link>
-          )}
+          <span className="feed-tab active">Kết quả: {description}</span>
         </div>
-        {focusedVideo
-          ? <VideoFeed focusVideo={focusedVideo} />
-          : <FeedGrid activeTag={tag} onSelectVideo={selectGridVideo} />}
+        <FeedGrid activeDescription={description} onSelectVideo={onSelectVideo} />
       </div>
     )
   }
@@ -52,8 +32,8 @@ export default function FeedPage() {
   return (
     <div className="feed-page">
       {view === 'video'
-        ? <VideoFeed focusVideo={focusedVideo} />
-        : <FeedGrid onSelectVideo={selectGridVideo} />}
+        ? <VideoFeed focusVideo={focusVideo} />
+        : <FeedGrid onSelectVideo={onSelectVideo} />}
     </div>
   )
 }

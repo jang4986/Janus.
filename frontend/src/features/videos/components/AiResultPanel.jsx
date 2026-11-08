@@ -3,13 +3,6 @@ import { ErrorNote, Spinner } from '@/shared/components/Feedback'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useAiAnalysis } from '../hooks/useAiAnalysis'
 
-const JOB_LABEL = {
-  pending: 'Đang chờ xử lý',
-  running: 'Đang phân tích',
-  succeeded: 'Hoàn tất',
-  failed: 'Thất bại',
-}
-
 /**
  * Phân tích và cấu trúc hóa chuỗi log / transcript từ pipeline AI.
  * Loại bỏ thông tin đường dẫn nội bộ và bóc tách thành các module trực quan.
@@ -123,16 +116,6 @@ function FormattedTranscript({ transcript, includeDiagnostics }) {
                       Độ tin cậy: <strong>{item.confidence}%</strong>
                     </span>
                   )}
-                  {item.anchors !== null && (
-                    <span className="ai-meta-point">
-                      Đã quét: <strong>{item.anchors}</strong> anchors
-                    </span>
-                  )}
-                  {item.fps !== null && (
-                    <span className="ai-meta-point">
-                      Tốc độ: <strong>{item.fps} fps</strong>
-                    </span>
-                  )}
                 </div>
               </div>
             </li>
@@ -209,6 +192,8 @@ export default function AiResultPanel({ videoId, result: propResult, loading: pr
   const loading = propLoading !== undefined ? propLoading : internal.loading
   const error = internal.error
   const detectorIssue = result?.error_message || result?.transcript?.split(/\r?\n/).find((line) => line.startsWith('[NSFW-Detection chưa sẵn sàng:'))
+  const modelLabel = result?.labels?.find((l) => l.type === 'nsfw') ?? result?.labels?.[0]
+  const modelName = modelLabel?.name || 'Trạng thái AI'
   const isTestResult = /Mock transcript for development testing|NSFW-Detection chưa sẵn sàng/i.test(
     `${result?.transcript || ''}\n${result?.error_message || ''}`,
   )
@@ -221,12 +206,11 @@ export default function AiResultPanel({ videoId, result: propResult, loading: pr
     <section className="ai-panel" aria-live="polite">
       <header className="ai-head">
         <div>
-          <span className="overline">KẾT QUẢ PHÂN TÍCH</span>
-          <h2>Trạng thái AI</h2>
+          <h2>Kết quả phân tích</h2>
         </div>
         <span className={`ai-state ${result?.job_status === 'succeeded' ? 'ok' : ''}`}>
           {loading && <Spinner label="Đang chờ kết quả" />}
-          {JOB_LABEL[result?.job_status] || 'Đang lấy trạng thái'}
+          {modelName}
         </span>
       </header>
 

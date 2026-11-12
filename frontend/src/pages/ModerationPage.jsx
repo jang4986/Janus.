@@ -8,8 +8,6 @@ import {
   decideVideo,
   fetchQueue,
   fetchReports,
-  fetchAppeals,
-  decideAppeal,
 } from '@/features/moderation/api/moderationApi'
 import { useModerationList } from '@/features/moderation/hooks/useModerationList'
 import { streamUrl } from '@/features/videos/api/videosApi'
@@ -17,27 +15,24 @@ import { streamUrl } from '@/features/videos/api/videosApi'
 const TABS = [
   { id: 'queue', label: 'Hàng đợi video' },
   { id: 'reports', label: 'Báo cáo' },
-  { id: 'appeals', label: 'Khiếu nại' },
 ]
 
 export default function ModerationPage() {
   const [tab, setTab] = useState('queue')
   const queue = useModerationList(fetchQueue)
   const reports = useModerationList(fetchReports)
-  const appeals = useModerationList(fetchAppeals)
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState('')
 
-  const active = tab === 'queue' ? queue : tab === 'reports' ? reports : appeals
+  const active = tab === 'queue' ? queue : reports
 
   async function decide(kind, id, action) {
     setBusyId(id)
     setError('')
     try {
       if (kind === 'queue') await decideVideo(id, action)
-      else if (kind === 'reports') await decideReport(id, action)
-      else await decideAppeal(id, action)
-      await Promise.all([queue.refresh(), reports.refresh(), appeals.refresh()])
+      else await decideReport(id, action)
+      await Promise.all([queue.refresh(), reports.refresh()])
     } catch (requestError) {
       setError(requestError.detail || requestError.message)
     } finally {
@@ -80,7 +75,7 @@ export default function ModerationPage() {
       ) : active.items.length === 0 ? (
         <EmptyState
           icon="check"
-          title={tab === 'queue' ? 'Không có video nào chờ duyệt' : tab === 'reports' ? 'Không có báo cáo đang mở' : 'Không có khiếu nại đang chờ'}
+          title={tab === 'queue' ? 'Không có video nào chờ duyệt' : 'Không có báo cáo đang mở'}
           hint="Mọi thứ đã được xử lý xong."
         />
       ) : tab === 'queue' ? (
@@ -119,7 +114,7 @@ export default function ModerationPage() {
             </li>
           ))}
         </ul>
-      ) : tab === 'reports' ? (
+      ) : (
         <ul className="mod-list">
           {active.items.map((report) => (
             <li className="mod-card" key={report.id}>
@@ -147,22 +142,6 @@ export default function ModerationPage() {
                   >
                     Bác bỏ báo cáo
                   </button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="mod-list">
-          {active.items.map((appeal) => (
-            <li className="mod-card" key={appeal.id}>
-              <div className="mod-body">
-                <div className="mod-title"><strong>Khiếu nại quyết định video</strong><span className="badge badge-warn">{appeal.status}</span></div>
-                <p className="mod-meta">@{appeal.user_display_name || appeal.user_id} · Video: {appeal.video_id} · {formatDateTime(appeal.created_at)}</p>
-                <p className="mod-reason">“{appeal.reason}”</p>
-                <div className="mod-actions">
-                  <button type="button" className="button primary" disabled={busyId===appeal.id} onClick={()=>decide('appeals',appeal.id,'approve')}><Icon name="check" size={15}/> Chấp nhận khiếu nại</button>
-                  <button type="button" className="button ghost" disabled={busyId===appeal.id} onClick={()=>decide('appeals',appeal.id,'reject')}><Icon name="x" size={15}/> Giữ quyết định</button>
                 </div>
               </div>
             </li>

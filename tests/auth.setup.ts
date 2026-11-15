@@ -8,27 +8,35 @@ const authFile = path.resolve(
   'playwright/.auth/user.json'
 );
 
-setup('Authenticate as User', async ({ page }) => {
-  // 1. Lấy thông tin tài khoản từ .env
-  const email = process.env.E2E_USER_EMAIL;
-  const password = process.env.E2E_USER_PASSWORD;
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
 
-  if (!email || !password) {
-    throw new Error('Missing User test credentials in .env');
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
   }
 
-  // 2. Đăng nhập
+  return value;
+}
+
+setup('Authenticate as E2E User', async ({ page }) => {
+  const email = getRequiredEnv('E2E_USER_EMAIL');
+  const password = getRequiredEnv('E2E_USER_PASSWORD');
+
+  // 1. Mở trang đăng nhập
   await page.goto('/');
 
   await page.getByRole('link', { name: 'Đăng nhập' }).click();
 
-  await page.getByRole('textbox', { name: 'Email' }).fill(email);
+  // 2. Nhập thông tin
+  await page.getByRole('textbox', { name: 'Email' })
+    .fill(email);
 
-  await page.getByRole('textbox', { name: 'Mật khẩu' }).fill(password);
+  await page.getByRole('textbox', { name: 'Mật khẩu' })
+    .fill(password);
 
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // 3. Xác nhận đăng nhập thành công
+  // 3. Xác nhận đăng nhập
   await expect(page).toHaveURL('/', {
     timeout: 15000,
   });
@@ -40,7 +48,9 @@ setup('Authenticate as User', async ({ page }) => {
   await expect(profileLink).toBeVisible();
 
   // 4. Lưu Authentication State
-  await mkdir(path.dirname(authFile), { recursive: true });
+  await mkdir(path.dirname(authFile), {
+    recursive: true,
+  });
 
   await page.context().storageState({
     path: authFile,

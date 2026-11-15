@@ -1,57 +1,40 @@
 import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
-import path from 'path';
-
-// Đọc file .env
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-
 
 export default defineConfig({
-  // Thư mục chứa các Test Case
   testDir: './tests',
 
-  // Chạy tuần tự để tránh xung đột dữ liệu
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
 
-  // Không tự động chạy lại khi Failed
-  retries: 0,
+  forbidOnly: !!process.env.CI,
 
-  // Báo cáo
-  reporter: [
-    ['list'],
-    ['html', { open: 'never' }],
-  ],
+  retries: process.env.CI ? 2 : 0,
 
-  // Cấu hình trình duyệt
+  workers: process.env.CI ? 2 : undefined,
+
+  reporter: 'html',
+
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL:
+      process.env.PLAYWRIGHT_BASE_URL ??
+      'http://localhost:5173',
 
-    screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
 
   projects: [
     {
-      name: 'setup-user',
+      name: 'setup',
+
       testMatch: /auth\.setup\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
     },
+
     {
       name: 'chromium',
-      testIgnore: /video-search\.spec\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-    {
-      name: 'video-authenticated',
 
-      testMatch: /video-search\.spec\.ts/,
+      testMatch: /.*\.spec\.ts/,
 
-      dependencies: ['setup-user'],
+      dependencies: ['setup'],
 
       use: {
         ...devices['Desktop Chrome'],

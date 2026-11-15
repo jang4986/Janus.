@@ -7,14 +7,15 @@ on:
 
   workflow_dispatch:
 
-# Chỉ cấp quyền đọc source code
+# Chỉ cấp quyền đọc source code.
 permissions:
   contents: read
 
-# Hủy lần chạy cũ nếu cùng PR được cập nhật
+# Các CI run dùng chung Neon E2E database.
+# Không cho phép hai run reset database đồng thời.
 concurrency:
-  group: playwright-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: janus-e2e-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -22,16 +23,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    # ========================================
+    # E2E ENVIRONMENT
+    # ========================================
+
+    env:
+      # Application
+      APP_ENV: e2e
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+
+      # Database - Neon E2E PostgreSQL
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      E2E_ALLOW_DATABASE_RESET: YES
+
+      # Storage - Local
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: ${{ github.workspace }}/storage/e2e/uploads
+      E2E_VIDEO_DIR: ${{ github.workspace }}/storage/e2e/fixtures
+      MAX_UPLOAD_SIZE_BYTES: '52428800'
+
+      # CORS
+      CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173"]'
+
+      # User
+      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+
+      # Moderator
+      E2E_MODERATOR_EMAIL: ${{ secrets.E2E_MODERATOR_EMAIL }}
+      E2E_MODERATOR_PASSWORD: ${{ secrets.E2E_MODERATOR_PASSWORD }}
+
+      # Cloudinary video fixtures
+      E2E_VIDEO_01_URL: https://res.cloudinary.com/dhl7uh3pp/video/upload/v1794705309/test_aprh3t.mp4
+      E2E_VIDEO_02_URL: https://res.cloudinary.com/dhl7uh3pp/video/upload/v1794705422/test_2_fid9ro.mp4
+
+      # Video titles - phải khớp với dữ liệu seed
+      E2E_VIDEO_01_TITLE: 'ABC DEF 123 456'
+      E2E_VIDEO_02_TITLE: 'GHI MNO 789 111'
+
+      # Frontend
+      PLAYWRIGHT_BASE_URL: http://localhost:5173
+      VITE_API_BASE_URL: http://localhost:8000
+
     steps:
       # ========================================
-      # 1. Checkout source code
+      # 1. CHECKOUT
       # ========================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # ========================================
-      # 2. Setup Node.js
+      # 2. SETUP NODE.JS
       # ========================================
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -40,8 +85,9 @@ jobs:
           cache-dependency-path: package-lock.json
 
       # ========================================
-      # 3. Setup uv
+      # 3. SETUP UV
       # ========================================
+
       - name: Setup uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -50,8 +96,9 @@ jobs:
             backend/uv.lock
 
       # ========================================
-      # 4. Check development environment
+      # 4. CHECK ENVIRONMENT
       # ========================================
+
       - name: Check environment
         run: |
           node --version
@@ -60,79 +107,106 @@ jobs:
           python3 --version
 
       # ========================================
-      # 5. Install root dependencies
+      # 5. INSTALL ROOT DEPENDENCIES
       # ========================================
-      - name: Install dependencies
+
+      - name: Install root dependencies
         run: npm ci
 
       # ========================================
-      # 6. Install Playwright browsers
+      # 6. INSTALL BACKEND DEPENDENCIES
       # ========================================
-      - name: Install Playwright Browsers
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --locked
+
+      # ========================================
+      # 7. INSTALL PLAYWRIGHT BROWSER
+      # ========================================
+
+      - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       # ========================================
-      # 7. Start Janus and run E2E tests
+      # 8. VALIDATE ENVIRONMENT
       # ========================================
-      - name: Start Janus and run Playwright tests
-        env:
-          # Database - Neon PostgreSQL
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-          # Backend configuration
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          UPLOAD_DIR: ${{ secrets.UPLOAD_DIR }}
-          MAX_UPLOAD_SIZE_BYTES: ${{ secrets.MAX_UPLOAD_SIZE_BYTES }}
-
-          # Storage configuration
-          STORAGE_DRIVER: local
-
-          # CORS configuration
-          CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
-
-          # User test account
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-
-          # Moderator test account
-          E2E_MODERATOR_EMAIL: ${{ secrets.E2E_MODERATOR_EMAIL }}
-          E2E_MODERATOR_PASSWORD: ${{ secrets.E2E_MODERATOR_PASSWORD }}
-
+      - name: Validate E2E environment
+        shell: bash
         run: |
           set -Eeuo pipefail
 
-          # ------------------------------------
-          # Validate required environment variables
-          # ------------------------------------
           required_vars=(
+            APP_ENV
             DATABASE_URL
             SECRET_KEY
             E2E_USER_EMAIL
             E2E_USER_PASSWORD
             E2E_MODERATOR_EMAIL
             E2E_MODERATOR_PASSWORD
+            E2E_VIDEO_01_URL
+            E2E_VIDEO_02_URL
+            E2E_VIDEO_01_TITLE
+            E2E_VIDEO_02_TITLE
+            UPLOAD_DIR
+            E2E_VIDEO_DIR
+            PLAYWRIGHT_BASE_URL
           )
 
           for var in "${required_vars[@]}"; do
-            if [ -z "${!var:-}" ]; then
-              echo "::error::$var is missing from GitHub Secrets"
+            if [[ -z "${!var:-}" ]]; then
+              echo "::error::$var is missing."
               exit 1
             fi
           done
 
-          echo "Environment variables are available."
+          if [[ "$APP_ENV" != "e2e" ]]; then
+            echo "::error::APP_ENV must be e2e."
+            exit 1
+          fi
+
+          if [[ "$E2E_ALLOW_DATABASE_RESET" != "YES" ]]; then
+            echo "::error::Database reset is not enabled."
+            exit 1
+          fi
+
+          if [[ "$UPLOAD_DIR" == "$E2E_VIDEO_DIR" ]]; then
+            echo "::error::Upload and fixture directories must be different."
+            exit 1
+          fi
+
+          echo "E2E environment validation passed."
+
+      # ========================================
+      # 9. PREPARE E2E DATABASE AND FIXTURES
+      # ========================================
+
+      - name: Prepare E2E database
+        run: bash scripts/prepare.sh
+
+      # ========================================
+      # 10. START JANUS AND RUN PLAYWRIGHT
+      # ========================================
+
+      - name: Start Janus and run Playwright tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
 
           # ------------------------------------
-          # Start Janus development environment
+          # Start Janus
           # ------------------------------------
+
           chmod +x ./run_dev.sh
 
           ./run_dev.sh > /tmp/janus.log 2>&1 &
           JANUS_PID=$!
 
           # ------------------------------------
-          # Cleanup on exit
+          # Cleanup
           # ------------------------------------
+
           cleanup() {
             echo "Stopping Janus..."
 
@@ -147,8 +221,9 @@ jobs:
           trap cleanup EXIT
 
           # ------------------------------------
-          # Wait for application services
+          # Wait for services
           # ------------------------------------
+
           wait_for_service() {
             local name="$1"
             local url="$2"
@@ -162,15 +237,8 @@ jobs:
                 return 0
               fi
 
-              # Detect terminated startup process
-              if ! ps -p "$JANUS_PID" > /dev/null 2>&1; then
+              if ! kill -0 "$JANUS_PID" 2>/dev/null; then
                 echo "::error::Janus exited unexpectedly."
-                cat /tmp/janus.log
-                return 1
-              fi
-
-              if ps -p "$JANUS_PID" -o stat= | grep -q '^Z'; then
-                echo "::error::Janus process terminated."
                 cat /tmp/janus.log
                 return 1
               fi
@@ -180,29 +248,32 @@ jobs:
 
             echo "::error::$name failed to start."
             cat /tmp/janus.log
+
             return 1
           }
 
-          # Backend readiness
+          # Backend
           wait_for_service \
             "Backend" \
             "http://127.0.0.1:8000/docs"
 
-          # Frontend readiness
+          # Frontend
           wait_for_service \
             "Frontend" \
             "http://127.0.0.1:5173/"
 
-          echo "Janus is ready. Starting Playwright tests..."
+          echo "Janus is ready."
 
           # ------------------------------------
-          # Run Playwright Test Suite
+          # Run Playwright
           # ------------------------------------
+
           npx playwright test
 
       # ========================================
-      # 8. Upload Playwright reports
+      # 11. UPLOAD PLAYWRIGHT REPORT
       # ========================================
+
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -215,8 +286,9 @@ jobs:
           if-no-files-found: ignore
 
       # ========================================
-      # 9. Upload Janus logs on failure
+      # 12. UPLOAD JANUS LOGS
       # ========================================
+
       - name: Upload application logs
         if: failure()
         uses: actions/upload-artifact@v4

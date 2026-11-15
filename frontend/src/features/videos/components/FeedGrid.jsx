@@ -73,7 +73,7 @@ export default function FeedGrid({ activeDescription = '', onSelectVideo }) {
           const title = video.caption || 'Không có mô tả'
           return (
             <button
-              key={video._loopKey || video.id}
+              key={video.id}
               type="button"
               className="feed-grid-card"
               onClick={() => onSelectVideo?.(video)}

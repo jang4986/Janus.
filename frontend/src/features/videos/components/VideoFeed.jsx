@@ -120,7 +120,7 @@ export default function VideoFeed({ focusVideo = null }) {
       <div className="feed" ref={containerRef}>
         {displayVideos.map((video, index) => (
           <VideoSlide
-            key={video._loopKey || video.id}
+            key={video.id}
             video={video}
             index={index}
             activeIndex={activeIndex}

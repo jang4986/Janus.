@@ -211,7 +211,19 @@ export async function apiFetch(path, options = {}) {
 
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
-    const detail = typeof payload?.detail === 'string' ? payload.detail : null
+    let detail = null
+    if (typeof payload?.detail === 'string') {
+      detail = payload.detail
+    } else if (Array.isArray(payload?.detail)) {
+      // Lỗi xác thực Pydantic (ví dụ 422 email sai định dạng): detail là mảng.
+      detail = payload.detail
+        .map((e) => {
+          const loc = e.loc ? e.loc.join('.') : ''
+          const msg = e.msg || e.message || ''
+          return loc ? `${loc}: ${msg}` : msg
+        })
+        .join('; ')
+    }
     throw new ApiError(response.status, detail || `Yêu cầu thất bại (${response.status})`)
   }
   return payload

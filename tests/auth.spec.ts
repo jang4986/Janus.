@@ -1,59 +1,96 @@
-import { test, expect } from '@playwright/test';
+
+import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
-const EXISTING_USER = {
-  username: 'Nguyen Van A',
-  email: process.env.E2E_USER_EMAIL!,
-  password: process.env.E2E_USER_PASSWORD!,
-};
+// Authentication tests luôn bắt đầu ở trạng thái Guest.
+test.use({
+  storageState: {
+    cookies: [],
+    origins: [],
+  },
+});
 
-async function openRegisterPage(page) {
+// ======================================================
+// TEST DATA
+// ======================================================
+
+function getUser() {
+  const email = process.env.E2E_USER_EMAIL;
+  const password = process.env.E2E_USER_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('Missing E2E User credentials');
+  }
+
+  return { email, password };
+}
+
+function getModerator() {
+  const email = process.env.E2E_MODERATOR_EMAIL;
+  const password = process.env.E2E_MODERATOR_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('Missing E2E Moderator credentials');
+  }
+
+  return { email, password };
+}
+
+// ======================================================
+// HELPERS
+// ======================================================
+
+async function openRegisterPage(page: Page) {
   await page.goto('/');
 
   await page.getByRole('link', { name: 'Đăng nhập' }).click();
   await page.getByRole('link', { name: 'Đăng ký' }).click();
 }
 
-async function openLoginPage(page) {
+async function openLoginPage(page: Page) {
   await page.goto('/');
 
   await page.getByRole('link', { name: 'Đăng nhập' }).click();
 }
 
-async function expectLoggedInAs(page, email: string) {
-  // 1. Kiểm tra xem đã chuyển hướng về trang chủ thành công chưa
+async function expectLoggedInAs(page: Page, email: string) {
   await expect(page).toHaveURL('/', {
     timeout: 15000,
   });
 
-  // 2. Tìm và click vào link 'Hồ sơ' trong thanh điều hướng
   const profileLink = page
     .getByRole('navigation', { name: 'Điều hướng chính' })
     .getByRole('link', { name: 'Hồ sơ' });
 
   await expect(profileLink).toBeVisible();
+
   await profileLink.click();
 
-  // 3. Sử dụng data-testid để kiểm tra email hiển thị chính xác
-  const userEmailLocator = page.getByTestId('user-email');
-  
-  await expect(userEmailLocator).toBeVisible();
-  await expect(userEmailLocator).toHaveText(email);
+  const userEmail = page.getByTestId('user-email');
+
+  await expect(userEmail).toBeVisible();
+  await expect(userEmail).toHaveText(email);
 }
 
+async function expectLoginFailed(page: Page) {
+  await expect(
+    page.getByText(/tài khoản hoặc mật khẩu không chính xác/i)
+  ).toBeVisible();
+
+  await expect(page).toHaveURL(/\/login\/?$/);
+}
+
+// ======================================================
+// REGISTRATION TESTS
+// ======================================================
+
 test('REG-01 - Đăng ký tài khoản với thông tin hợp lệ', async ({ page }) => {
-  // Test data
   const username = `qa-${randomUUID()}`;
   const email = `${username}@example.com`;
-  const password = 'qwe123!@#';
+  const password = getUser().password;
 
-  // 1. Mở trang đăng ký
-  await page.goto('/');
+  await openRegisterPage(page);
 
-  await page.getByRole('link', { name: 'Đăng nhập' }).click();
-  await page.getByRole('link', { name: 'Đăng ký' }).click();
-
-  // 2. Nhập thông tin đăng ký
   await page.getByRole('textbox', { name: 'Username' })
     .fill(username);
 
@@ -63,33 +100,33 @@ test('REG-01 - Đăng ký tài khoản với thông tin hợp lệ', async ({ pa
   await page.getByRole('textbox', { name: 'Mật khẩu' })
     .fill(password);
 
-  // 3. Gửi yêu cầu đăng ký
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // 4. Xác nhận đăng ký thành công và kiểm tra Profile
   await expectLoggedInAs(page, email);
 });
 
 test('REG-02 - Đăng ký với email đã được sử dụng', async ({ page }) => {
+  const user = getUser();
+
   await openRegisterPage(page);
 
   await page.getByRole('textbox', { name: 'Username' })
     .fill('Duplicate User');
 
   await page.getByRole('textbox', { name: 'Email' })
-    .fill(EXISTING_USER.email);
+    .fill(user.email);
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(EXISTING_USER.password);
+    .fill(user.password);
 
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // Không được chuyển về trang chủ
   await expect(page).toHaveURL(/\/register\/?$/);
 
-  // Xác nhận thông báo email đã tồn tại
   await expect(
-    page.getByText(/email.*(đã tồn tại|đã được sử dụng|đã đăng ký)/i)
+    page.getByText(
+      /email.*(đã tồn tại|đã được sử dụng|đã đăng ký)/i
+    )
   ).toBeVisible({ timeout: 10000 });
 });
 
@@ -104,18 +141,16 @@ test('REG-03 - Đăng ký với email sai định dạng', async ({ page }) => {
   await email.fill('user-example.com');
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(EXISTING_USER.password);
+    .fill(getUser().password);
 
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // Kiểm tra trình duyệt đánh giá email không hợp lệ
   const isValid = await email.evaluate(
     (element: HTMLInputElement) => element.checkValidity()
   );
 
   expect(isValid).toBe(false);
 
-  // Không được đăng ký thành công
   await expect(page).toHaveURL(/\/register\/?$/);
 });
 
@@ -133,12 +168,12 @@ test('REG-04 - Đăng ký với mật khẩu quá ngắn', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // Xác nhận vẫn ở trang đăng ký
   await expect(page).toHaveURL(/\/register\/?$/);
 
-  // Xác nhận lỗi liên quan đến mật khẩu
   await expect(
-    page.getByText(/mật khẩu.*(tối thiểu|ít nhất|8 ký tự)|tối thiểu 8 ký tự/i)
+    page.getByText(
+      /mật khẩu.*(tối thiểu|ít nhất|8 ký tự)|tối thiểu 8 ký tự/i
+    )
   ).toBeVisible();
 });
 
@@ -147,16 +182,14 @@ test('REG-05 - Đăng ký khi bỏ trống Username', async ({ page }) => {
 
   const username = page.getByRole('textbox', { name: 'Username' });
 
-  // Cố ý không nhập Username
   await page.getByRole('textbox', { name: 'Email' })
     .fill(`empty-${randomUUID()}@example.com`);
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(EXISTING_USER.password);
+    .fill(getUser().password);
 
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // Kiểm tra Username không hợp lệ
   const isValid = await username.evaluate(
     (element: HTMLInputElement) => element.checkValidity()
   );
@@ -171,18 +204,18 @@ test('REG-06 - Đăng ký thành công sau khi sửa dữ liệu không hợp l�
 
   const username = `qa-${randomUUID()}`;
   const email = `${username}@example.com`;
-  const password = EXISTING_USER.password;
 
-  const usernameInput = page.getByRole('textbox', { name: 'Username' });
+  const usernameInput = page.getByRole('textbox', {
+    name: 'Username',
+  });
 
-  // 1. Nhập thông tin nhưng bỏ trống Username
   await page.getByRole('textbox', { name: 'Email' })
     .fill(email);
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(password);
+    .fill(getUser().password);
 
-  // 2. Submit lần đầu
+  // Submit lần đầu khi Username bị bỏ trống.
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
   const isValid = await usernameInput.evaluate(
@@ -191,94 +224,74 @@ test('REG-06 - Đăng ký thành công sau khi sửa dữ liệu không hợp l�
 
   expect(isValid).toBe(false);
 
-  // 3. Sửa Username
+  // Sửa dữ liệu và submit lại.
   await usernameInput.fill(username);
 
-  // 4. Submit lần hai
   await page.getByRole('button', { name: 'Đăng ký' }).click();
 
-  // 5. Xác nhận tài khoản được tạo thành công
   await expectLoggedInAs(page, email);
 });
+
+// ======================================================
+// LOGIN TESTS
+// ======================================================
 
 test('LOG-01 - Đăng nhập User bằng thông tin hợp lệ', async ({ page }) => {
-  // Test data
-  const { username, email, password } = EXISTING_USER;
+  const user = getUser();
 
-  // 1. Mở trang đăng nhập
-  await page.goto('/');
+  await openLoginPage(page);
 
-  await page.getByRole('link', { name: 'Đăng nhập' }).click();
-
-  // 2. Nhập thông tin đăng nhập
   await page.getByRole('textbox', { name: 'Email' })
-    .fill(email);
+    .fill(user.email);
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
-    .fill(password);
+    .fill(user.password);
 
-  // 3. Gửi yêu cầu đăng nhập
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // 4. Xác nhận đăng nhập thành công và kiểm tra Profile
-  await expectLoggedInAs(page, email);
+  await expectLoggedInAs(page, user.email);
 });
 
-
 test('LOG-02 - Đăng nhập Moderator bằng thông tin hợp lệ', async ({ page }) => {
-  // Test data
-  const email = process.env.E2E_MODERATOR_EMAIL;
-  const password = process.env.E2E_MODERATOR_PASSWORD;
+  const moderator = getModerator();
 
-  if (!email || !password) {
-    throw new Error('Missing Moderator test credentials in .env');
-  }
+  await openLoginPage(page);
 
-  // 1. Mở trang đăng nhập
-  await page.goto('/');
+  await page.getByRole('textbox', { name: 'Email' })
+    .fill(moderator.email);
 
-  await page.getByRole('link', { name: 'Đăng nhập' }).click();
+  await page.getByRole('textbox', { name: 'Mật khẩu' })
+    .fill(moderator.password);
 
-  // 2. Nhập thông tin Moderator
-  await page.getByRole('textbox', { name: 'Email' }).fill(email);
-  await page.getByRole('textbox', { name: 'Mật khẩu' }).fill(password);
-
-  // 3. Gửi yêu cầu đăng nhập
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // 4. Xác nhận đăng nhập thành công
   await expect(page).toHaveURL('/', {
     timeout: 15000,
   });
 
-  // 5. Kiểm tra quyền truy cập chức năng Kiểm duyệt
-  const moderationLink = page.getByRole('link', { name: 'Kiểm duyệt' });
+  const moderationLink = page.getByRole('link', {
+    name: 'Kiểm duyệt',
+  });
 
   await expect(moderationLink).toBeVisible();
 
-  // 6. Truy cập chức năng Kiểm duyệt
   await moderationLink.click();
 });
 
-
 test('LOG-03 - Đăng nhập với mật khẩu sai', async ({ page }) => {
+  const user = getUser();
+
   await openLoginPage(page);
 
   await page.getByRole('textbox', { name: 'Email' })
-    .fill(EXISTING_USER.email);
+    .fill(user.email);
 
   await page.getByRole('textbox', { name: 'Mật khẩu' })
     .fill('wrong-password-123');
 
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // Xác nhận thông báo đăng nhập thất bại
-  await expect(
-    page.getByText(/tài khoản hoặc mật khẩu không chính xác/i)
-  ).toBeVisible();
-
-  // Không được chuyển về trang chủ
-  await expect(page).toHaveURL(/\/login\/?$/);
+  await expectLoginFailed(page);
 });
 
 test('LOG-04 - Đăng nhập với tài khoản không tồn tại', async ({ page }) => {
@@ -294,15 +307,13 @@ test('LOG-04 - Đăng nhập với tài khoản không tồn tại', async ({ pa
 
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  await expect(
-    page.getByText(/tài khoản hoặc mật khẩu không chính xác/i)
-  ).toBeVisible();
-
-  await expect(page).toHaveURL(/\/login\/?$/);
+  await expectLoginFailed(page);
 });
 
 test('LOG-05 - Đăng nhập khi bỏ trống trường thông tin', async ({ page }) => {
-  const missingFields = ['Email', 'Mật khẩu'];
+  const user = getUser();
+
+  const missingFields = ['Email', 'Mật khẩu'] as const;
 
   for (const missingField of missingFields) {
     await openLoginPage(page);
@@ -310,13 +321,12 @@ test('LOG-05 - Đăng nhập khi bỏ trống trường thông tin', async ({ pa
     const email = page.getByRole('textbox', { name: 'Email' });
     const password = page.getByRole('textbox', { name: 'Mật khẩu' });
 
-    // Trường còn lại được nhập dữ liệu hợp lệ
     if (missingField !== 'Email') {
-      await email.fill(EXISTING_USER.email);
+      await email.fill(user.email);
     }
 
     if (missingField !== 'Mật khẩu') {
-      await password.fill(EXISTING_USER.password);
+      await password.fill(user.password);
     }
 
     await page.getByRole('button', { name: 'Đăng nhập' }).click();
@@ -336,32 +346,24 @@ test('LOG-05 - Đăng nhập khi bỏ trống trường thông tin', async ({ pa
 });
 
 test('LOG-06 - Đăng nhập sau khi nhập sai rồi nhập lại đúng', async ({ page }) => {
+  const user = getUser();
+
   await openLoginPage(page);
 
+  const email = page.getByRole('textbox', { name: 'Email' });
   const password = page.getByRole('textbox', { name: 'Mật khẩu' });
 
-  // 1. Nhập email hợp lệ
-  await page.getByRole('textbox', { name: 'Email' })
-    .fill(EXISTING_USER.email);
-
-  // 2. Nhập sai mật khẩu
+  await email.fill(user.email);
   await password.fill('wrong-password-123');
 
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // 3. Xác nhận đăng nhập thất bại
-  await expect(
-    page.getByText(/tài khoản hoặc mật khẩu không chính xác/i)
-  ).toBeVisible();
+  await expectLoginFailed(page);
 
-  await expect(page).toHaveURL(/\/login\/?$/);
+  // Nhập lại password chính xác.
+  await password.fill(user.password);
 
-  // 4. Nhập lại mật khẩu đúng
-  await password.fill(EXISTING_USER.password);
-
-  // 5. Đăng nhập lần hai
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-  // 6. Xác nhận đăng nhập thành công và thông tin Profile
-  await expectLoggedInAs(page, EXISTING_USER.email);
+  await expectLoggedInAs(page, user.email);
 });

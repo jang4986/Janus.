@@ -2,12 +2,40 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
-// Test data
-const VIDEO_TITLE = 'Coi gì hài hài này :> Hahaha';
-const PARTIAL_KEYWORD = 'Hài';
+// Các test video bắt đầu ở trạng thái Guest.
+// Nếu ứng dụng yêu cầu đăng nhập để xem video,
+// hãy bỏ test.use này để sử dụng User storageState.
+test.use({
+  storageState: {
+    cookies: [],
+    origins: [],
+  },
+});
+
+// ======================================================
+// TEST DATA
+// ======================================================
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+const VIDEO_1_TITLE = requiredEnv('E2E_VIDEO_01_TITLE');
+const VIDEO_2_TITLE = requiredEnv('E2E_VIDEO_02_TITLE');
+
+const PARTIAL_KEYWORD = VIDEO_1_TITLE.slice(0, 3);
 const NON_EXISTENT_KEYWORD = `video-not-found-${randomUUID()}`;
 
-// Helper: Tìm kiếm video
+// ======================================================
+// HELPERS
+// ======================================================
+
 async function searchVideo(page, keyword: string) {
   await page.goto('/');
 
@@ -19,14 +47,12 @@ async function searchVideo(page, keyword: string) {
   await searchbox.press('Enter');
 }
 
-// Helper: Lấy video từ kết quả tìm kiếm
 function getVideoResult(page, title: string) {
   return page.getByRole('button').filter({
     hasText: title,
   });
 }
 
-// Helper: Tìm kiếm và mở video
 async function openVideoFromSearch(page, title: string) {
   await searchVideo(page, title);
 
@@ -37,48 +63,45 @@ async function openVideoFromSearch(page, title: string) {
   await videoResult.click();
 }
 
-
 // ======================================================
-// VID-01: Tìm kiếm video theo tên chính xác
+// VID-01: Exact title search
 // ======================================================
 
 test('VID-01 - Tìm kiếm video theo tên chính xác', async ({ page }) => {
-  // 1. Tìm kiếm video bằng tên chính xác
-  await searchVideo(page, VIDEO_TITLE);
+  await searchVideo(page, VIDEO_1_TITLE);
 
-  // 2. Xác nhận chỉ tìm được video mong muốn
-  const videoResult = getVideoResult(page, VIDEO_TITLE);
+  const videoResult = getVideoResult(page, VIDEO_1_TITLE);
 
   await expect(videoResult).toHaveCount(1);
   await expect(videoResult).toBeVisible();
 });
 
 // ======================================================
-// VID-02: Tìm kiếm video theo một phần tên
+// VID-02: Partial title search
 // ======================================================
 
 test('VID-02 - Tìm kiếm video theo một phần tên', async ({ page }) => {
-  // 1. Tìm kiếm bằng một phần tên video
+  // 1. Tìm kiếm bằng một phần tên Video 01
   await searchVideo(page, PARTIAL_KEYWORD);
 
-  // 2. Kiểm tra có video phù hợp với từ khóa
-  const matchingResults = page.getByRole('button', {
-    name: /Xem video:.*hài/i,
-  });
+  // 2. Lấy kết quả tương ứng với hai video
+  const result1 = getVideoResult(page, VIDEO_1_TITLE);
+  const result2 = getVideoResult(page, VIDEO_2_TITLE);
 
-  await expect(matchingResults.first()).toBeVisible();
+  // 3. Video 01 phải xuất hiện
+  await expect(result1).toBeVisible();
+
+  // 4. Video 02 không chứa từ khóa nên không xuất hiện
+  await expect(result2).toHaveCount(0);
 });
 
-
 // ======================================================
-// VID-03: Tìm kiếm video không tồn tại
+// VID-03: No results
 // ======================================================
 
 test('VID-03 - Tìm kiếm video không tồn tại', async ({ page }) => {
-  // 1. Tìm kiếm video không tồn tại
   await searchVideo(page, NON_EXISTENT_KEYWORD);
 
-  // 2. Kiểm tra thông báo không tìm thấy kết quả
   await expect(
     page.getByText(
       `Không tìm thấy video phù hợp với “${NON_EXISTENT_KEYWORD}”.`,
@@ -86,7 +109,6 @@ test('VID-03 - Tìm kiếm video không tồn tại', async ({ page }) => {
     )
   ).toBeVisible();
 
-  // 3. Xác nhận không có video trong kết quả tìm kiếm
   const videoResults = page.getByRole('button').filter({
     hasText: /\d+\s*lượt xem/i,
   });
@@ -95,38 +117,32 @@ test('VID-03 - Tìm kiếm video không tồn tại', async ({ page }) => {
 });
 
 // ======================================================
-// VID-04: Chọn video từ kết quả tìm kiếm
+// VID-04: Open video
 // ======================================================
 
 test('VID-04 - Chọn video từ kết quả tìm kiếm', async ({ page }) => {
-  // 1. Tìm kiếm và mở video
-  await openVideoFromSearch(page, VIDEO_TITLE);
+  await openVideoFromSearch(page, VIDEO_1_TITLE);
 
-  // 2. Kiểm tra giao diện xem video đã mở
   await expect(page.locator('video').first()).toBeVisible();
 
-  // 3. Kiểm tra thông tin video tương ứng
   await expect(
-    page.getByText(VIDEO_TITLE, { exact: true }).last()
+    page.getByText(VIDEO_1_TITLE, { exact: true }).last()
   ).toBeVisible();
 });
 
-
 // ======================================================
-// VID-05: Phát video sau khi chọn từ kết quả tìm kiếm
+// VID-05: Play video
 // ======================================================
 
 test('VID-05 - Phát video sau khi chọn từ kết quả tìm kiếm', async ({ page }) => {
-  // 1. Tìm kiếm và mở video
-  await openVideoFromSearch(page, VIDEO_TITLE);
+  await openVideoFromSearch(page, VIDEO_1_TITLE);
 
-  // 2. Lấy video player
   const video = page.locator('video').first();
 
   await expect(video).toBeVisible();
 
-  // 3. Kiểm tra video đã tải được dữ liệu
-  // HAVE_CURRENT_DATA = 2
+  // Chờ video có dữ liệu.
+  // HAVE_CURRENT_DATA = 2.
   await expect.poll(
     () => video.evaluate(
       (element: HTMLVideoElement) => element.readyState
@@ -134,11 +150,11 @@ test('VID-05 - Phát video sau khi chọn từ kết quả tìm kiếm', async (
     { timeout: 20000 }
   ).toBeGreaterThanOrEqual(2);
 
-  // 4. Kiểm tra video thực sự đang phát
   const initialTime = await video.evaluate(
     (element: HTMLVideoElement) => element.currentTime
   );
 
+  // Xác nhận thời gian phát tăng.
   await expect.poll(
     () => video.evaluate(
       (element: HTMLVideoElement) => element.currentTime
@@ -147,29 +163,31 @@ test('VID-05 - Phát video sau khi chọn từ kết quả tìm kiếm', async (
   ).toBeGreaterThan(initialTime);
 });
 
+// ======================================================
+// VID-06: Next video in Feed
+// ======================================================
 
-// ======================================================
-// VID-06: Chuyển sang video tiếp theo khi đang xem
-// ======================================================
 test('VID-06 - Chuyển sang video tiếp theo khi đang xem', async ({ page }) => {
-  // 1. Mở Feed
   await page.goto('/');
 
-  // 2. Xác định Feed và danh sách video
   const feed = page.locator('.feed');
   const slides = feed.locator('.slide-video-frame');
 
   await expect(feed).toBeVisible();
 
-  // 3. Lấy video đầu tiên và video tiếp theo
-  const firstVideo = slides.nth(0).locator('video');
+  // Database E2E được seed đúng hai video.
+  await expect(slides).toHaveCount(2);
+
+  const firstSlide = slides.nth(0);
   const nextSlide = slides.nth(1);
+
+  const firstVideo = firstSlide.locator('video');
   const nextVideo = nextSlide.locator('video');
 
   await expect(firstVideo).toBeVisible();
   await expect(nextSlide).toBeAttached();
 
-  // 4. Chờ video đầu tiên tải dữ liệu
+  // Chờ video đầu tiên tải dữ liệu.
   await expect.poll(
     () => firstVideo.evaluate(
       (element: HTMLVideoElement) => element.readyState
@@ -177,19 +195,17 @@ test('VID-06 - Chuyển sang video tiếp theo khi đang xem', async ({ page }) 
     { timeout: 20000 }
   ).toBeGreaterThanOrEqual(2);
 
-  // 5. Lưu nguồn video đầu tiên
   const initialSource = await firstVideo.evaluate(
     (element: HTMLVideoElement) => element.currentSrc
   );
 
   expect(initialSource).not.toBe('');
 
-  // 6. Lưu vị trí cuộn ban đầu
   const initialScrollTop = await feed.evaluate(
     (element) => element.scrollTop
   );
 
-  // 7. Đưa chuột vào khu vực Feed
+  // Đưa chuột vào Feed.
   const feedBox = await feed.boundingBox();
 
   if (!feedBox) {
@@ -201,10 +217,9 @@ test('VID-06 - Chuyển sang video tiếp theo khi đang xem', async ({ page }) 
     feedBox.y + feedBox.height / 2
   );
 
-  // 8. Cuộn xuống để chuyển video tiếp theo
+  // Cuộn xuống.
   await page.mouse.wheel(0, 700);
 
-  // 9. Xác nhận Feed đã cuộn
   await expect.poll(
     () => feed.evaluate(
       (element) => element.scrollTop
@@ -212,18 +227,27 @@ test('VID-06 - Chuyển sang video tiếp theo khi đang xem', async ({ page }) 
     { timeout: 10000 }
   ).toBeGreaterThan(initialScrollTop);
 
-  // 10. Xác nhận video thứ hai chiếm phần lớn vùng hiển thị của Feed
+  // Video thứ hai chiếm hơn 80% vùng hiển thị.
   await expect.poll(
     () => nextSlide.evaluate((slide) => {
-      const feed = slide.closest('.feed');
+      const feedElement = slide.closest('.feed');
 
-      if (!feed) return 0;
+      if (!feedElement) return 0;
 
-      const feedRect = feed.getBoundingClientRect();
+      const feedRect = feedElement.getBoundingClientRect();
       const slideRect = slide.getBoundingClientRect();
 
-      const visibleTop = Math.max(feedRect.top, slideRect.top);
-      const visibleBottom = Math.min(feedRect.bottom, slideRect.bottom);
+      if (slideRect.height === 0) return 0;
+
+      const visibleTop = Math.max(
+        feedRect.top,
+        slideRect.top
+      );
+
+      const visibleBottom = Math.min(
+        feedRect.bottom,
+        slideRect.bottom
+      );
 
       const visibleHeight = Math.max(
         0,
@@ -235,15 +259,21 @@ test('VID-06 - Chuyển sang video tiếp theo khi đang xem', async ({ page }) 
     { timeout: 10000 }
   ).toBeGreaterThan(0.8);
 
-  // 11. Xác nhận video tiếp theo có nguồn khác video ban đầu
+  // Chờ nguồn video tiếp theo xuất hiện.
+  await expect.poll(
+    () => nextVideo.evaluate(
+      (element: HTMLVideoElement) => element.currentSrc
+    ),
+    { timeout: 15000 }
+  ).not.toBe('');
+
   const nextSource = await nextVideo.evaluate(
     (element: HTMLVideoElement) => element.currentSrc
   );
 
-  expect(nextSource).not.toBe('');
   expect(nextSource).not.toBe(initialSource);
 
-  // 12. Xác nhận video tiếp theo đã tải dữ liệu
+  // Xác nhận video thứ hai đã tải dữ liệu.
   await expect.poll(
     () => nextVideo.evaluate(
       (element: HTMLVideoElement) => element.readyState

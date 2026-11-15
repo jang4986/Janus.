@@ -10,7 +10,7 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  PBL6 AI SHORT VIDEO MODERATION - 1-CLICK DEV RUNNER    " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Hàm dọn dẹp tiến trình đang chiếm cổng
+# Ham don dep tien trinh dang chiem cong
 function Stop-PortProcess {
     param([int]$Port)
     try {
@@ -18,98 +18,98 @@ function Stop-PortProcess {
         foreach ($conn in $connections) {
             $procId = $conn.OwningProcess
             if ($procId -and $procId -ne $PID) {
-                Write-Host "[CLEANUP] Đang dừng tiến trình PID $procId đang chiếm cổng $Port..." -ForegroundColor Yellow
+                Write-Host "[CLEANUP] Dang dung tien trinh PID $procId dang chiem cong $Port..." -ForegroundColor Yellow
                 Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
             }
         }
     } catch {}
 }
 
-# Dọn dẹp cổng 8000 và 5173 trước khi khởi chạy nếu có tiến trình treo cũ
+# Don dep cong 8000 va 5173 truoc khi khoi chay neu co tien trinh treo cu
 Stop-PortProcess 8000
 Stop-PortProcess 5173
 
-# Bước 1: Kiểm tra công cụ hệ thống (uv, node, npm)
-Write-Host "`n[1/5] Kiểm tra công cụ hệ thống (uv, node, npm)..." -ForegroundColor Cyan
+# Buoc 1: Kiem tra cong cu he thong (uv, node, npm)
+Write-Host "`n[1/5] Kiem tra cong cu he thong (uv, node, npm)..." -ForegroundColor Cyan
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Write-Host "[ERROR] 'uv' chưa được cài đặt! Vui lòng cài đặt: https://docs.astral.sh/uv/" -ForegroundColor Red
+    Write-Host "[ERROR] 'uv' chua duoc cai dat! Vui long cai dat: https://docs.astral.sh/uv/" -ForegroundColor Red
     exit 1
 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Host "[ERROR] 'node' chưa được cài đặt! Vui lòng cài đặt Node.js." -ForegroundColor Red
+    Write-Host "[ERROR] 'node' chua duoc cai dat! Vui long cai dat Node.js." -ForegroundColor Red
     exit 1
 }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    Write-Host "[ERROR] 'npm' chưa được cài đặt! Vui lòng cài đặt npm." -ForegroundColor Red
+    Write-Host "[ERROR] 'npm' chua duoc cai dat! Vui long cai dat npm." -ForegroundColor Red
     exit 1
 }
-Write-Host "[OK] Môi trường uv, node, npm đã sẵn sàng!" -ForegroundColor Green
+Write-Host "[OK] Moi truong uv, node, npm da san sang!" -ForegroundColor Green
 
-# Bước 2: Đồng bộ thư viện Backend (uv sync)
-Write-Host "`n[2/5] Đồng bộ thư viện Backend (uv sync)..." -ForegroundColor Cyan
+# Buoc 2: Dong bo thu vien Backend (uv sync)
+Write-Host "`n[2/5] Dong bo thu vien Backend (uv sync)..." -ForegroundColor Cyan
 uv sync --directory backend
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] uv sync thất bại! Vui lòng kiểm tra kết nối mạng hoặc pyproject.toml." -ForegroundColor Red
+    Write-Host "[ERROR] uv sync that bai! Vui long kiem tra ket noi mang hoac pyproject.toml." -ForegroundColor Red
     exit 1
 }
-Write-Host "[OK] Thư viện Backend đã được đồng bộ hoàn tất!" -ForegroundColor Green
+Write-Host "[OK] Thu vien Backend da duoc dong bo hoan tat!" -ForegroundColor Green
 
-# Bước 3: Kiểm tra dependencies Frontend
-Write-Host "`n[3/5] Kiểm tra dependencies Frontend..." -ForegroundColor Cyan
+# Buoc 3: Kiem tra dependencies Frontend
+Write-Host "`n[3/5] Kiem tra dependencies Frontend..." -ForegroundColor Cyan
 if (-not (Test-Path "$PSScriptRoot\frontend\node_modules")) {
-    Write-Host "[*] Chưa tìm thấy frontend/node_modules. Đang chạy 'npm --prefix frontend install'..." -ForegroundColor Yellow
+    Write-Host "[*] Chua tim thay frontend/node_modules. Dang chay 'npm --prefix frontend install'..." -ForegroundColor Yellow
     npm --prefix frontend install
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Cài đặt dependencies frontend thất bại!" -ForegroundColor Red
+        Write-Host "[ERROR] Cai dat dependencies frontend that bai!" -ForegroundColor Red
         exit 1
     }
-    Write-Host "[OK] Cài đặt dependencies frontend hoàn tất!" -ForegroundColor Green
+    Write-Host "[OK] Cai dat dependencies frontend hoan tat!" -ForegroundColor Green
 } else {
-    Write-Host "[OK] frontend/node_modules đã sẵn sàng!" -ForegroundColor Green
+    Write-Host "[OK] frontend/node_modules da san sang!" -ForegroundColor Green
 }
 
-# Bước 4: Đồng bộ Database lên bản mới nhất (Alembic migration)
-Write-Host "`n[4/5] Đồng bộ Database lên bản mới nhất (Alembic migration)..." -ForegroundColor Cyan
+# Buoc 4: Dong bo Database len ban moi nhat (Alembic migration)
+Write-Host "`n[4/5] Dong bo Database len ban moi nhat (Alembic migration)..." -ForegroundColor Cyan
 uv run --directory backend alembic upgrade head
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Đồng bộ Database thất bại! Mã lỗi: $LASTEXITCODE. Hủy khởi chạy server." -ForegroundColor Red
+    Write-Host "[ERROR] Dong bo Database that bai! Ma loi: $LASTEXITCODE. Huy khoi chay server." -ForegroundColor Red
     exit 1
 }
-Write-Host "[OK] Database đã được đồng bộ lên bản mới nhất!" -ForegroundColor Green
+Write-Host "[OK] Database da duoc dong bo len ban moi nhat!" -ForegroundColor Green
 
-# Bước 5: Khởi động song song Backend và Frontend
-Write-Host "`n[5/5] Khởi động song song Backend và Frontend..." -ForegroundColor Cyan
+# Buoc 5: Khoi dong song song Backend va Frontend
+Write-Host "`n[5/5] Khoi dong song song Backend va Frontend..." -ForegroundColor Cyan
 
-# Khởi chạy Backend (Uvicorn)
+# Khoi chay Backend (Uvicorn)
 $backendProc = Start-Process -FilePath "uv" -ArgumentList "run", "--directory", "backend", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000" -PassThru -NoNewWindow
 
-# Khởi chạy Frontend (Vite)
+# Khoi chay Frontend (Vite)
 $frontendProc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run --prefix frontend dev" -PassThru -NoNewWindow
 
 Write-Host "`n==========================================================" -ForegroundColor Green
-Write-Host "  HỆ THỐNG ĐÃ KHỞI CHẠY THÀNH CÔNG!                      " -ForegroundColor Green
+Write-Host "  HE THONG DA KHOI CHAY THANH CONG!                      " -ForegroundColor Green
 Write-Host "  - Frontend:         http://localhost:5173               " -ForegroundColor Yellow
 Write-Host "  - Backend API:      http://127.0.0.1:8000               " -ForegroundColor Yellow
 Write-Host "  - Backend Docs:     http://127.0.0.1:8000/docs          " -ForegroundColor Yellow
-Write-Host "  Nhấn [Ctrl + C] để dừng toàn bộ hệ thống.              " -ForegroundColor Cyan
+Write-Host "  Nhan [Ctrl + C] de dung toan bo he thong.              " -ForegroundColor Cyan
 Write-Host "==========================================================`n" -ForegroundColor Green
 
-# Lắng nghe và Clean Shutdown khi thoát
+# Lang nghe va Clean Shutdown khi thoat
 try {
     while ($true) {
         Start-Sleep -Milliseconds 500
         if ($backendProc.HasExited) {
-            Write-Host "[CẢNH BÁO] Tiến trình Backend đã dừng (ExitCode: $($backendProc.ExitCode))." -ForegroundColor Red
+            Write-Host "[CANH BAO] Tien trinh Backend da dung (ExitCode: $($backendProc.ExitCode))." -ForegroundColor Red
             break
         }
         if ($frontendProc.HasExited) {
-            Write-Host "[CẢNH BÁO] Tiến trình Frontend đã dừng (ExitCode: $($frontendProc.ExitCode))." -ForegroundColor Red
+            Write-Host "[CANH BAO] Tien trinh Frontend da dung (ExitCode: $($frontendProc.ExitCode))." -ForegroundColor Red
             break
         }
     }
 }
 finally {
-    Write-Host "`n[STOPPING] Đang dừng toàn bộ dịch vụ và giải phóng cổng..." -ForegroundColor Yellow
+    Write-Host "`n[STOPPING] Dang dung toan bo dich vu va giai phong cong..." -ForegroundColor Yellow
     if ($backendProc -and -not $backendProc.HasExited) {
         taskkill /PID $backendProc.Id /T /F >$null 2>&1
     }
@@ -118,5 +118,5 @@ finally {
     }
     Stop-PortProcess 8000
     Stop-PortProcess 5173
-    Write-Host "[OK] Đã dọn dẹp sạch sẽ toàn bộ dịch vụ. Tạm biệt!" -ForegroundColor Green
+    Write-Host "[OK] Da don dep sach se toan bo dich vu. Tam biet!" -ForegroundColor Green
 }

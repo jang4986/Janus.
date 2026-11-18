@@ -65,7 +65,7 @@ jobs:
           echo '```text' >> SECURITY_TEST_REPORT.md
 
           set -o pipefail
-          uv run --directory backend pytest tests/test_security_views_auth.py -v --tb=short 2>&1 | tee -a reports/pytest.log
+          uv run --directory backend pytest tests/test_security_views_auth.py -v --tb=short -o console_output_style=classic 2>&1 | tee -a reports/pytest.log
           TEST_EXIT_CODE=$?
 
           cat reports/pytest.log >> SECURITY_TEST_REPORT.md

@@ -10,8 +10,14 @@ from sqlalchemy.orm import Session
 from app.ai.base import SAFE_LABEL, AnalysisReport, DetectorUnavailableError
 from app.ai.pipeline import analyse_video
 from app.core.config import get_settings
+from app.core.media import (
+    SUPPORTED_MP4_BRANDS,
+    SUPPORTED_MP4_CODECS,
+    validate_mp4_content,
+)
 from app.core.security import hash_opaque_token, new_opaque_token
 from app.db.session import SessionLocal
+from app.exceptions import NotFoundError
 from app.models import (
     AIJob,
     JobStatus,
@@ -20,52 +26,19 @@ from app.models import (
     ModerationAction,
     ModerationReview,
     User,
+    UserRole,
     Video,
     VideoLabel,
     VideoStatus,
 )
+from app.schemas import AIResultResponse
 from app.services.storage_service import get_storage_service
 from app.services.thumbnail_service import extract_first_frame
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_MP4_CODECS = (b"avc1", b"hvc1", b"hev1", b"av01", b"mp4v")
-SUPPORTED_MP4_BRANDS = (
-    b"isom",
-    b"iso2",
-    b"iso4",
-    b"iso5",
-    b"iso6",
-    b"mp41",
-    b"mp42",
-    b"mmp4",
-    b"M4V ",
-    b"M4A ",
-    b"dash",
-    b"avc1",
-    b"MSNV",
-    b"qt  ",
-)
 MOCK_TRANSCRIPT = "Mock transcript for development testing."
 
-
-def validate_mp4_content(content: bytes) -> str:
-    if len(content) < 16 or content[4:8] != b"ftyp":
-        raise ValueError("Tệp không có MP4 magic bytes hợp lệ")
-    box_size = int.from_bytes(content[0:4], "big")
-    if box_size < 16 or box_size > len(content):
-        raise ValueError("MP4 ftyp box không hợp lệ")
-    compatible_brands = content[8:box_size]
-    has_known_brand = any(brand in compatible_brands for brand in SUPPORTED_MP4_BRANDS)
-    if not has_known_brand:
-        # Nếu không nằm trong danh sách tường minh, kiểm tra major_brand có phải 4 ký tự ASCII hợp lệ của container MP4 chuẩn
-        major_brand = content[8:12]
-        if not (len(major_brand) == 4 and all(32 <= b <= 126 for b in major_brand)):
-            raise ValueError("MP4 brand không được hỗ trợ")
-    codec = next((marker for marker in SUPPORTED_MP4_CODECS if marker in content), None)
-    if codec is None:
-        raise ValueError("Không tìm thấy codec video MP4 được hỗ trợ")
-    return codec.decode("ascii")
 
 
 def confidence_level(score: float) -> str:
@@ -222,7 +195,7 @@ def run_mock_analysis(video_id: UUID, note: str | None = None) -> None:
             storage = get_storage_service()
             with storage.download_to_temp(video.storage_path) as path:
                 thumbnail = extract_first_frame(path)
-            storage.upload_thumbnail(f"thumbnails/first-frame/{video.id}.jpg", thumbnail)
+            storage.upload_thumbnail(storage.build_thumbnail_key(video.id), thumbnail)
         except Exception:
             logger.exception("Không tạo được thumbnail cho video %s", video.id)
         _apply_mock_result(db, job, video, note)
@@ -242,10 +215,11 @@ def run_video_analysis(video_id: UUID) -> None:
             )
 
         report: AnalysisReport | None = None
-        with get_storage_service().download_to_temp(video.storage_path) as path:
+        storage = get_storage_service()
+        with storage.download_to_temp(video.storage_path) as path:
             thumbnail = extract_first_frame(path)
-            get_storage_service().upload_thumbnail(
-                f"thumbnails/first-frame/{video.id}.jpg",
+            storage.upload_thumbnail(
+                storage.build_thumbnail_key(video.id),
                 thumbnail,
             )
             if mode != "off":
@@ -269,50 +243,40 @@ def run_video_analysis(video_id: UUID) -> None:
     _run_job(video_id, handler)
 
 
-def remove_local_file(path: str) -> None:
-    Path(path).unlink(missing_ok=True)
-
-
-def as_aware(value: datetime) -> datetime:
-    """SQLite trả datetime naive; chuẩn hoá về UTC để so sánh an toàn."""
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-
-
-def issue_refresh_token(db: Session, user: User) -> str:
-    """Tạo refresh token mới (chỉ lưu băm) và trả về giá trị thô cho client."""
-    settings = get_settings()
-    raw = new_opaque_token(48)
-    db.add(
-        RefreshToken(
-            user_id=user.id,
-            token_hash=hash_opaque_token(raw),
-            expires_at=datetime.now(timezone.utc)
-            + timedelta(days=settings.refresh_token_expire_days),
-        )
+def get_ai_result(db: Session, video_id: UUID, requester: User) -> AIResultResponse:
+    """Chỉ chủ video hoặc moderator/admin xem được kết quả phân tích."""
+    video = db.get(Video, video_id)
+    allowed_roles = {UserRole.moderator, UserRole.admin}
+    if (
+        video is None
+        or video.is_deleted
+        or (video.owner_id != requester.id and requester.role not in allowed_roles)
+    ):
+        raise NotFoundError("Không tìm thấy video")
+    job = db.scalar(
+        select(AIJob)
+        .where(AIJob.video_id == video_id)
+        .order_by(AIJob.created_at.desc())
     )
-    return raw
-
-
-def revoke_refresh_token(db: Session, raw_token: str, user_id: UUID | None = None) -> bool:
-    """Thu hồi một refresh token; trả về True nếu tìm thấy và còn hiệu lực."""
-    row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_opaque_token(raw_token)))
-    if row is None or row.revoked_at is not None:
-        return False
-    if user_id is not None and row.user_id != user_id:
-        return False
-    row.revoked_at = datetime.now(timezone.utc)
-    return True
-
-
-def revoke_all_refresh_tokens(db: Session, user_id: UUID) -> None:
-    now = datetime.now(timezone.utc)
-    rows = db.scalars(
-        select(RefreshToken).where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+    from app.services.video_label_service import to_label_responses
+    labels = to_label_responses(video)
+    return AIResultResponse(
+        video_id=video_id,
+        job_status=job.status.value if job else "unknown",
+        transcript=job.transcript if job else None,
+        error_message=job.error_message if job else None,
+        labels=labels,
+        video_status=video.status,
     )
-    for row in rows:
-        row.revoked_at = now
 
 
-def purge_expired_revoked_tokens(db: Session) -> None:
-    """Dọn access token đã hết hạn khỏi bảng thu hồi."""
-    db.execute(delete(RevokedToken).where(RevokedToken.expires_at < datetime.now(timezone.utc)))
+# Backwards compatibility re-exports (chuyển sang đúng service domain)
+from app.core.security import as_aware  # noqa: F401, E402
+from app.services.auth_service import (  # noqa: F401, E402
+    issue_refresh_token,
+    purge_expired_revoked_tokens,
+    revoke_all_refresh_tokens,
+    revoke_refresh_token,
+)
+from app.services.storage_service import remove_local_file  # noqa: F401, E402
+

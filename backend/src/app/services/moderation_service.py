@@ -22,6 +22,9 @@ from app.models import (
 from app.schemas.moderation import ModerationQueueItemResponse
 from app.schemas.video import LabelResponse
 from app.services.storage_service import get_storage_service
+from app.services.video_label_service import to_label_response
+from app.services.video_service import get_video_stream_url
+
 
 
 def create_report(db: Session, video_id: UUID, reporter: User, reason: str) -> Report:
@@ -71,12 +74,7 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
         ai_status = latest_job.status.value if latest_job else None
 
         labels = [
-            LabelResponse(
-                name=vl.label.name,
-                confidence=vl.confidence,
-                level=vl.level,
-                source=vl.source,
-            )
+            to_label_response(vl)
             for vl in video.labels
             if vl.label is not None
         ]
@@ -101,14 +99,11 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
         else:
             queue_reason = "Chờ kiểm duyệt thủ công"
 
-        stream_url = (
-            storage.get_stream_url(video.storage_path, public=True)
-            if storage.is_s3 and not storage.is_existing_local_path(video.storage_path)
-            else f"/api/v1/videos/{video.id}/stream"
-        )
+        stream_url = get_video_stream_url(video, storage)
         thumbnail_url = storage.get_thumbnail_url(
-            f"thumbnails/first-frame/{video.id}.jpg"
+            storage.build_thumbnail_key(video.id)
         )
+
 
         item = ModerationQueueItemResponse(
             id=video.id,

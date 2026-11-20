@@ -1,14 +1,16 @@
 """Nghiệp vụ tài khoản: đăng ký, xác thực, phiên đăng nhập và khôi phục mật khẩu."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import jwt
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import (
+    as_aware,
     create_access_token,
     decode_access_token,
     hash_opaque_token,
@@ -24,9 +26,8 @@ from app.services.profile_service import allocate_discriminator
 
 def _is_expired(dt: datetime) -> bool:
     """Kiểm tra thời điểm đã quá hạn hay chưa, hỗ trợ cả offset-naive (SQLite) và aware (Postgres)."""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt <= datetime.now(UTC)
+    return as_aware(dt) <= datetime.now(UTC)
+
 
 
 def create_user(db: Session, payload: UserCreate) -> User:
@@ -180,9 +181,47 @@ def reset_password(db: Session, raw_token: str, new_password: str) -> None:
     # Đổi mật khẩu
     user.password_hash = hash_password(new_password)
     # Thu hồi toàn bộ refresh token hiện có của user
+    revoke_all_refresh_tokens(db, user.id)
+    db.commit()
+
+
+def issue_refresh_token(db: Session, user: User) -> str:
+    """Tạo refresh token mới (chỉ lưu băm) và trả về giá trị thô cho client."""
+    settings = get_settings()
+    raw = new_opaque_token(48)
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=hash_opaque_token(raw),
+            expires_at=datetime.now(UTC)
+            + timedelta(days=settings.refresh_token_expire_days),
+        )
+    )
+    return raw
+
+
+def revoke_refresh_token(db: Session, raw_token: str, user_id: UUID | None = None) -> bool:
+    """Thu hồi một refresh token; trả về True nếu tìm thấy và còn hiệu lực."""
+    row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_opaque_token(raw_token)))
+    if row is None or row.revoked_at is not None:
+        return False
+    if user_id is not None and row.user_id != user_id:
+        return False
+    row.revoked_at = datetime.now(UTC)
+    return True
+
+
+def revoke_all_refresh_tokens(db: Session, user_id: UUID) -> None:
+    """Thu hồi toàn bộ refresh token còn hoạt động của một người dùng."""
+    now = datetime.now(UTC)
     db.execute(
         update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=now)
     )
-    db.commit()
+
+
+def purge_expired_revoked_tokens(db: Session) -> None:
+    """Dọn access token đã hết hạn khỏi bảng thu hồi."""
+    db.execute(delete(RevokedToken).where(RevokedToken.expires_at < datetime.now(UTC)))
+

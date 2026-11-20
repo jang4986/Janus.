@@ -2,7 +2,7 @@ from pathlib import Path
 
 from app.db.session import SessionLocal
 from app.models import User, UserRole
-from app.services.ai_service import validate_mp4_content
+from app.core.media import validate_mp4_content
 
 TEST_STORAGE_PATH = Path(__file__).resolve().parents[1] / "test_storage"
 

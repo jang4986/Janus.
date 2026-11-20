@@ -34,10 +34,9 @@ from app.services import (
     video_service,
     view_tracking_service,
 )
-from app.services.storage_service import get_storage_service
-from app.services.thumbnail_service import extract_first_frame
 
 router = APIRouter(tags=["videos"])
+
 
 
 @router.post("/videos", response_model=VideoResponse, status_code=status.HTTP_201_CREATED)
@@ -93,7 +92,8 @@ def search_videos(
 
 @router.get("/videos/{video_id}/ai", response_model=AIResultResponse)
 def ai_result(video_id: UUID, user: User = Depends(current_user), db: Session = Depends(get_db)) -> AIResultResponse:
-    return video_service.get_ai_result(db, video_id, user)
+    return ai_service.get_ai_result(db, video_id, user)
+
 
 
 @router.patch("/videos/{video_id}", response_model=VideoResponse)
@@ -175,46 +175,15 @@ def video_thumbnail(
     user: User | None = Depends(optional_user),
     db: Session = Depends(get_db),
 ) -> FileResponse | RedirectResponse:
-    video = db.get(Video, video_id)
-    if video is None or video.is_deleted:
-        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh bìa")
-    video_status = getattr(video.status, "value", video.status)
-    video_visibility = getattr(video.visibility, "value", video.visibility)
-    is_public = video_status == "published" and video_visibility == "public"
-    is_owner = user is not None and video.owner_id == user.id
-    user_role = getattr(user.role, "value", user.role) if user is not None else None
-    is_staff = user_role in {"moderator", "admin"}
-    if not (is_public or is_owner or is_staff):
-        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh bìa")
-    storage = get_storage_service()
-    if storage.is_s3:
-        thumbnail_key = f"thumbnails/first-frame/{video_id}.jpg"
-        thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
-        if thumbnail_url.startswith("/api/v1/videos/"):
-            try:
-                with storage.download_to_temp(video.storage_path) as video_path:
-                    thumbnail = extract_first_frame(video_path)
-                storage.upload_thumbnail(thumbnail_key, thumbnail)
-                thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
-            except Exception as exc:
-                raise HTTPException(status_code=404, detail="Không thể tạo ảnh xem trước cho video này") from exc
-        return RedirectResponse(thumbnail_url)
-    path = Path(get_settings().upload_dir) / f"thumbnails/first-frame/{video_id}.jpg"
-    if not path.is_file():
-        try:
-            with storage.download_to_temp(video.storage_path) as video_path:
-                thumbnail = extract_first_frame(video_path)
-            storage.upload_thumbnail(f"thumbnails/first-frame/{video_id}.jpg", thumbnail)
-        except Exception as exc:
-            raise HTTPException(
-                status_code=404,
-                detail="Không thể tạo ảnh xem trước cho video này",
-            ) from exc
+    target = video_service.resolve_video_thumbnail(db, video_id, user)
+    if isinstance(target, str):
+        return RedirectResponse(target)
     return FileResponse(
-        path,
-        media_type=f"image/{path.suffix.lstrip('.')}",
+        target,
+        media_type=f"image/{target.suffix.lstrip('.')}",
         headers={"Cache-Control": "private, max-age=300"},
     )
+
 
 
 @router.delete("/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)

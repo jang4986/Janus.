@@ -7,14 +7,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models import RevokedToken, User, UserRole
 
 bearer = HTTPBearer(auto_error=False)
-
-
-def _decode_token_payload(token: str) -> dict:
-    return jwt.decode(token, get_settings().secret_key, algorithms=["HS256"])
 
 
 def current_user(
@@ -27,7 +24,7 @@ def current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Vui lòng đăng nhập"
         )
     try:
-        payload = _decode_token_payload(credentials.credentials)
+        payload = decode_access_token(credentials.credentials)
         user_id = UUID(payload["sub"])
         jti = payload.get("jti")
     except (jwt.PyJWTError, KeyError, ValueError) as exc:
@@ -57,7 +54,7 @@ def optional_user(
     if credentials is None:
         return None
     try:
-        payload = _decode_token_payload(credentials.credentials)
+        payload = decode_access_token(credentials.credentials)
         user_id = UUID(payload["sub"])
         jti = payload.get("jti")
     except (jwt.PyJWTError, KeyError, ValueError):

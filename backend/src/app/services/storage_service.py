@@ -117,6 +117,21 @@ class StorageService:
     def is_existing_local_path(file_key: str) -> bool:
         return Path(file_key).is_file()
 
+    @staticmethod
+    def build_thumbnail_key(video_id: object) -> str:
+        """Tạo object key chuẩn cho ảnh thu nhỏ (thumbnail) của video."""
+        return f"thumbnails/first-frame/{video_id}.jpg"
+
+
+def build_thumbnail_key(video_id: object) -> str:
+    """Helper module-level tạo object key cho ảnh thu nhỏ (thumbnail)."""
+    return StorageService.build_thumbnail_key(video_id)
+
+
+def remove_local_file(path: str | Path) -> None:
+    """Xóa an toàn tệp tin cục bộ trên ổ đĩa."""
+    Path(path).unlink(missing_ok=True)
+
 
 @lru_cache
 def get_storage_service() -> StorageService:

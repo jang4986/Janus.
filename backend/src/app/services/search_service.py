@@ -97,19 +97,15 @@ def search_published_videos_by_tag(
         matched_by_video.setdefault(video_id, []).append(label_name)
 
     storage = get_storage_service()
+    from app.services.video_service import get_video_stream_url
     items = [
         SearchTagItem(
             id=video.id,
             caption=video.caption,
             thumbnail_url=storage.get_thumbnail_url(
-                f"thumbnails/first-frame/{video.id}.jpg"
+                storage.build_thumbnail_key(video.id)
             ),
-            stream_url=(
-                storage.get_stream_url(video.storage_path, public=True)
-                if storage.is_s3
-                and not storage.is_existing_local_path(video.storage_path)
-                else f"/api/v1/videos/{video.id}/stream"
-            ),
+            stream_url=get_video_stream_url(video, storage),
             like_count=like_count_value,
             author=SearchTagAuthor(
                 id=video.owner.id,

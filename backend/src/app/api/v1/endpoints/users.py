@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.responses import FileResponse
-from pathlib import Path
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
 from app.db.session import get_db
 from app.dependencies import current_user
 from app.models import User
@@ -14,7 +12,7 @@ from app.schemas import (
     UserResponse,
 )
 from app.services import profile_service
-from app.services.storage_service import get_storage_service
+
 
 router = APIRouter(tags=["users"])
 
@@ -27,15 +25,9 @@ def profile(user: User = Depends(current_user)) -> User:  # noqa: B008
 @router.get("/profile/avatar/{user_id}")
 def get_avatar(user_id: str):
     """Trả về ảnh đại diện của người dùng (local storage)."""
-    settings = get_settings()
-    if settings.storage_driver.strip().lower() == "s3":
-        return None
-    avatars_dir = Path(settings.local_storage_root) / "avatars" / str(user_id)
-    if not avatars_dir.is_dir():
-        return None
-    for file_path in avatars_dir.iterdir():
-        if file_path.is_file():
-            return FileResponse(file_path)
+    file_path = profile_service.resolve_avatar_target(user_id)
+    if file_path is not None:
+        return FileResponse(file_path)
     return None
 
 

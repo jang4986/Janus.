@@ -60,3 +60,9 @@ def hash_opaque_token(raw: str) -> str:
 
 def opaque_tokens_equal(raw: str, stored_hash: str) -> bool:
     return hmac.compare_digest(hash_opaque_token(raw), stored_hash)
+
+
+def as_aware(value: datetime) -> datetime:
+    """SQLite trả datetime naive; chuẩn hoá về UTC để so sánh an toàn."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+

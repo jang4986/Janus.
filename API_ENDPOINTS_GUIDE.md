@@ -1855,7 +1855,7 @@ HTTP `204 No Content`.
 **Thông tin chung**
 
 - Method: `POST`
-- Path: `/api/v1/auth/password/forgot` (alias `/api/v1/auth/forgot-password`)
+- Path: `/api/v1/auth/password/forgot`
 - Operation ID: `forgot_password`
 - Full URL mẫu: `http://127.0.0.1:8000/api/v1/auth/password/forgot`
 - Chức năng: Tạo token đặt lại mật khẩu với thời hạn cấu hình; trả về phản hồi generic an toàn để chống dò quét tài khoản người dùng.
@@ -1895,7 +1895,7 @@ HTTP `202 Accepted`.
 **Thông tin chung**
 
 - Method: `POST`
-- Path: `/api/v1/auth/password/reset` (alias `/api/v1/auth/reset-password`)
+- Path: `/api/v1/auth/password/reset`
 - Operation ID: `reset_password`
 - Full URL mẫu: `http://127.0.0.1:8000/api/v1/auth/password/reset`
 - Chức năng: Xác thực token khôi phục (sử dụng 1 lần), cập nhật mật khẩu mới và tự động vô hiệu hóa toàn bộ refresh token cũ của người dùng.

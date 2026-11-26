@@ -63,12 +63,6 @@ def logout(
     response_model=PasswordForgotResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
-@router.post(
-    "/forgot-password",
-    response_model=PasswordForgotResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    include_in_schema=False,
-)
 def forgot_password(
     payload: PasswordForgotRequest,
     db: DbSession,
@@ -83,7 +77,6 @@ def forgot_password(
 
 
 @router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
-@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def reset_password(
     payload: PasswordResetRequest,
     db: DbSession,

@@ -123,6 +123,20 @@ def test_password_reset_rejects_bad_token(client):
     )
 
 
+def test_legacy_password_alias_routes_are_removed(client):
+    assert (
+        client.post("/api/v1/auth/forgot-password", json={"email": "alias@example.com"}).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": "token-khong-ton-tai", "new_password": "newpassword123"},
+        ).status_code
+        == 404
+    )
+
+
 def test_profile_update_display_name(client, register):
     headers = register("profile@example.com")
     response = client.patch(

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-import { setToken, getToken, getRefreshToken } from '@/shared/api/client'
+import { setTokens, clearTokens, getToken, getRefreshToken } from '@/shared/api/client'
 import * as authApi from './api/authApi'
 
 const AuthContext = createContext(null)
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
         if (!cancelled) {
           // Chỉ xóa phiên khi backend xác nhận token không hợp lệ/hết hạn.
           // Lỗi 500 hoặc mất kết nối tạm thời không nên làm mất phiên đăng nhập.
-          if (requestError.status === 401) setToken(null)
+          if (requestError.status === 401) clearTokens()
           setUser(null)
         }
       })
@@ -42,7 +42,12 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const session = await authApi.login(email, password)
-    setToken(session.access_token)
+    // Chỉ ghi đè refresh_token khi session thực sự có; nếu không, giữ lại token đang lưu
+    // để tránh setTokens(undefined) vô tình xóa mất refresh_token hiện có.
+    setTokens({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token || getRefreshToken(),
+    })
     const profile = await authApi.fetchProfile()
     setUser(profile)
     return profile
@@ -76,7 +81,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Clear the local session even if the backend is unreachable.
     }
-    setToken(null)
+    clearTokens()
     setUser(null)
   }, [])
 

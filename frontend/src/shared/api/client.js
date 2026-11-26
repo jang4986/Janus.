@@ -32,28 +32,6 @@ export function getRefreshToken() {
   return localStorage.getItem(REFRESH_TOKEN_KEY)
 }
 
-export function setToken(token) {
-  if (token) {
-    if (typeof token === 'object') {
-      if (token.access_token) localStorage.setItem(ACCESS_TOKEN_KEY, token.access_token)
-      if (token.refresh_token) localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token)
-    } else {
-      localStorage.setItem(ACCESS_TOKEN_KEY, token)
-    }
-  } else {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-  }
-}
-
-export function setRefreshToken(token) {
-  if (token) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, token)
-  } else {
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-  }
-}
-
 export function setTokens({ access_token, refresh_token } = {}) {
   if (access_token) {
     localStorage.setItem(ACCESS_TOKEN_KEY, access_token)

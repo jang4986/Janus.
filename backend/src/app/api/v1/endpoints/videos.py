@@ -62,10 +62,7 @@ def upload_video(
         content=file.file.read(settings.max_upload_size_bytes + 1),
         caption=caption,
     )
-    if get_settings().ai_analysis_mode.strip().lower() == "off":
-        background_tasks.add_task(ai_service.run_mock_analysis, video.id)
-    else:
-        background_tasks.add_task(ai_service.run_video_analysis, video.id)
+    background_tasks.add_task(ai_service.run_video_analysis, video.id)
     return video
 
 

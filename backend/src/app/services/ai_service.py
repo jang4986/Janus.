@@ -180,22 +180,6 @@ def _run_job(video_id: UUID, handler) -> None:
         db.close()
 
 
-def run_mock_analysis(video_id: UUID, note: str | None = None) -> None:
-    """Giữ nguyên hành vi mock cũ (dùng khi AI bị tắt hoặc môi trường AI chưa sẵn sàng)."""
-
-    def handler(db: Session, job: AIJob, video: Video) -> None:
-        try:
-            storage = get_storage_service()
-            with storage.download_to_temp(video.storage_path) as path:
-                thumbnail = extract_first_frame(path)
-            storage.upload_thumbnail(storage.build_thumbnail_key(video.id), thumbnail)
-        except Exception:
-            logger.exception("Không tạo được thumbnail cho video %s", video.id)
-        _apply_mock_result(db, job, video, note)
-
-    _run_job(video_id, handler)
-
-
 def run_video_analysis(video_id: UUID) -> None:
     """Điểm vào của BackgroundTasks: chạy NSFW-Detection theo ``AI_ANALYSIS_MODE``."""
 
@@ -209,24 +193,34 @@ def run_video_analysis(video_id: UUID) -> None:
 
         report: AnalysisReport | None = None
         storage = get_storage_service()
-        with storage.download_to_temp(video.storage_path) as path:
-            thumbnail = extract_first_frame(path)
-            storage.upload_thumbnail(
-                storage.build_thumbnail_key(video.id),
-                thumbnail,
-            )
-            if mode != "off":
+        try:
+            with storage.download_to_temp(video.storage_path) as path:
                 try:
-                    report = analyse_video(path)
-                except DetectorUnavailableError as exc:
-                    if mode == "required":
-                        raise
-                    logger.warning(
-                        "NSFW-Detection chưa sẵn sàng, dùng kết quả mock: %s", exc
+                    thumbnail = extract_first_frame(path)
+                    storage.upload_thumbnail(
+                        storage.build_thumbnail_key(video.id),
+                        thumbnail,
                     )
-                    note = f"[NSFW-Detection chưa sẵn sàng: {exc}]"
-                    _apply_mock_result(db, job, video, note)
-                    return
+                except Exception:
+                    logger.exception("Không tạo được thumbnail cho video %s", video.id)
+                if mode != "off":
+                    try:
+                        report = analyse_video(path)
+                    except DetectorUnavailableError as exc:
+                        if mode == "required":
+                            raise
+                        logger.warning(
+                            "NSFW-Detection chưa sẵn sàng, dùng kết quả mock: %s", exc
+                        )
+                        note = f"[NSFW-Detection chưa sẵn sàng: {exc}]"
+                        _apply_mock_result(db, job, video, note)
+                        return
+        except Exception:
+            if mode != "off":
+                raise
+            logger.exception(
+                "Không đọc được file video %s, dùng kết quả mock", video.id
+            )
 
         if report is None:
             _apply_mock_result(db, job, video)

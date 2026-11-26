@@ -1,15 +1,21 @@
 from datetime import datetime
-from pathlib import Path
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse, RedirectResponse
-from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.session import get_db
-from app.dependencies import current_user, optional_user
-from app.models import User, Video
+from app.dependencies import CurrentUser, DbSession, OptionalUser
+from app.models import Video
 from app.schemas import (
     AIResultResponse,
     AppealCreate,
@@ -38,14 +44,13 @@ from app.services import (
 router = APIRouter(tags=["videos"])
 
 
-
 @router.post("/videos", response_model=VideoResponse, status_code=status.HTTP_201_CREATED)
 def upload_video(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
+    db: DbSession,
     caption: str | None = None,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
 ) -> Video:
     # Đọc tối đa đúng ngưỡng cho phép để phát hiện file quá lớn mà không nạp cả file vào bộ nhớ.
     settings = get_settings()
@@ -65,25 +70,25 @@ def upload_video(
 
 
 @router.get("/videos", response_model=list[VideoResponse])
-def list_my_videos(user: User = Depends(current_user), db: Session = Depends(get_db)) -> list[Video]:
+def list_my_videos(user: CurrentUser, db: DbSession) -> list[Video]:
     return video_service.list_owned_videos(db, user)
 
 
 @router.get("/feed", response_model=FeedResponse)
 def feed(
-    limit: int = Query(default=8, ge=1, le=20),
-    cursor: datetime | None = Query(default=None),
-    db: Session = Depends(get_db),
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=20)] = 8,
+    cursor: Annotated[datetime | None, Query()] = None,
 ) -> FeedResponse:
     return video_service.list_published_feed(db, limit=limit, cursor=cursor)
 
 
 @router.get("/videos/search", response_model=SearchTagResponse)
 def search_videos(
-    tag: str = Query(..., min_length=1),
-    limit: int = Query(default=12, ge=1, le=20),
-    cursor: datetime | None = Query(default=None),  # noqa: B008
-    db: Session = Depends(get_db),
+    tag: Annotated[str, Query(min_length=1)],
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=20)] = 12,
+    cursor: Annotated[datetime | None, Query()] = None,
 ) -> SearchTagResponse:
     return search_service.search_published_videos_by_tag(
         db, tag, limit=limit, cursor=cursor
@@ -91,17 +96,16 @@ def search_videos(
 
 
 @router.get("/videos/{video_id}/ai", response_model=AIResultResponse)
-def ai_result(video_id: UUID, user: User = Depends(current_user), db: Session = Depends(get_db)) -> AIResultResponse:
+def ai_result(video_id: UUID, user: CurrentUser, db: DbSession) -> AIResultResponse:
     return ai_service.get_ai_result(db, video_id, user)
-
 
 
 @router.patch("/videos/{video_id}", response_model=VideoResponse)
 def update_video(
     video_id: UUID,
     payload: VideoUpdate,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
 ) -> Video:
     return video_service.update_video(db, video_id, user, payload)
 
@@ -109,8 +113,8 @@ def update_video(
 @router.get("/videos/{video_id}/labels", response_model=list[LabelResponse])
 def labels(
     video_id: UUID,
-    user: User | None = Depends(optional_user),
-    db: Session = Depends(get_db),
+    user: OptionalUser,
+    db: DbSession,
 ) -> list[LabelResponse]:
     return video_label_service.list_video_labels(db, video_id, user)
 
@@ -119,8 +123,8 @@ def labels(
 def replace_labels(
     video_id: UUID,
     payload: ReplaceVideoLabelsRequest,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
 ) -> list[LabelResponse]:
     return video_label_service.replace_video_labels(db, video_id, user, payload)
 
@@ -132,8 +136,8 @@ def replace_labels(
 def confirm_labels(
     video_id: UUID,
     payload: ConfirmLabelsRequest,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
 ) -> VideoLabelsResponse:
     return video_label_service.confirm_video_labels(db, video_id, user, payload)
 
@@ -146,8 +150,8 @@ def confirm_labels(
 def create_appeal(
     video_id: UUID,
     payload: AppealCreate,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
 ) -> AppealResponse:
     return moderation_service.create_appeal(db, video_id, user, payload.reason)
 
@@ -155,8 +159,8 @@ def create_appeal(
 @router.get("/videos/{video_id}/stream", response_model=None)
 def stream_video(
     video_id: UUID,
-    user: User | None = Depends(optional_user),
-    db: Session = Depends(get_db),
+    user: OptionalUser,
+    db: DbSession,
 ) -> FileResponse | RedirectResponse:
     target = video_service.resolve_stream_target(db, video_id, user)
     if isinstance(target, str):
@@ -172,8 +176,8 @@ def stream_video(
 @router.get("/videos/{video_id}/thumbnail", response_model=None)
 def video_thumbnail(
     video_id: UUID,
-    user: User | None = Depends(optional_user),
-    db: Session = Depends(get_db),
+    user: OptionalUser,
+    db: DbSession,
 ) -> FileResponse | RedirectResponse:
     target = video_service.resolve_video_thumbnail(db, video_id, user)
     if isinstance(target, str):
@@ -185,9 +189,8 @@ def video_thumbnail(
     )
 
 
-
 @router.delete("/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_video(video_id: UUID, user: User = Depends(current_user), db: Session = Depends(get_db)) -> None:
+def delete_video(video_id: UUID, user: CurrentUser, db: DbSession) -> None:
     video_service.soft_delete_video(db, video_id, user)
 
 
@@ -195,8 +198,8 @@ def delete_video(video_id: UUID, user: User = Depends(current_user), db: Session
 def create_report(
     video_id: UUID,
     payload: ReportCreate,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
 ) -> ReportResponse:
     return moderation_service.create_report(db, video_id, user, payload.reason)
 
@@ -209,8 +212,8 @@ def create_report(
 def record_video_view(
     video_id: UUID,
     request: Request,
-    user: User | None = Depends(optional_user),
-    db: Session = Depends(get_db),
+    user: OptionalUser,
+    db: DbSession,
 ) -> VideoViewResponse:
     cf_ip = request.headers.get("CF-Connecting-IP")
     real_ip = request.headers.get("X-Real-IP")

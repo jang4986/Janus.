@@ -471,6 +471,57 @@ def test_admin_user_management_filters_and_banning(client, register):
     assert promote_resp.json()["role"] == "moderator"
 
 
+def test_admin_user_status_filter_contract(client, register):
+    admin = register("status-filter-admin@example.com", role=UserRole.admin)
+    active_user = register("status-active@example.com", role=UserRole.user)
+    banned_user = register("status-banned@example.com", role=UserRole.user)
+
+    # Khóa 1 user để có cả 2 trạng thái active/inactive.
+    banned_id = client.get("/api/v1/profile", headers=banned_user).json()["id"]
+    assert (
+        client.patch(
+            f"/api/v1/admin/users/{banned_id}/status",
+            json={"status": "banned"},
+            headers=admin,
+        ).status_code
+        == 200
+    )
+    active_id = client.get("/api/v1/profile", headers=active_user).json()["id"]
+
+    # status=active -> chỉ user đang hoạt động.
+    active_list = client.get("/api/v1/admin/users?status=active", headers=admin)
+    assert active_list.status_code == 200
+    active_ids = {u["id"] for u in active_list.json()}
+    assert active_id in active_ids
+    assert banned_id not in active_ids
+    assert all(u["is_active"] for u in active_list.json())
+
+    # status=banned -> chỉ user bị khóa.
+    banned_list = client.get("/api/v1/admin/users?status=banned", headers=admin)
+    assert banned_list.status_code == 200
+    banned_ids = {u["id"] for u in banned_list.json()}
+    assert banned_id in banned_ids
+    assert active_id not in banned_ids
+    assert all(not u["is_active"] for u in banned_list.json())
+
+    # status=inactive (alias) -> tương đương banned.
+    inactive_list = client.get("/api/v1/admin/users?status=inactive", headers=admin)
+    assert inactive_list.status_code == 200
+    assert banned_id in {u["id"] for u in inactive_list.json()}
+    assert active_id not in {u["id"] for u in inactive_list.json()}
+
+    # Không truyền status -> trả tất cả (all).
+    all_list = client.get("/api/v1/admin/users?limit=100", headers=admin)
+    assert all_list.status_code == 200
+    all_ids = {u["id"] for u in all_list.json()}
+    assert {active_id, banned_id} <= all_ids
+
+    # is_active không còn là query param hợp lệ -> bị bỏ qua, không lọc.
+    ignored = client.get("/api/v1/admin/users?is_active=false&limit=100", headers=admin)
+    assert ignored.status_code == 200
+    assert {active_id, banned_id} <= {u["id"] for u in ignored.json()}
+
+
 def test_admin_audit_logs_and_permissions(client, register, seed_video):
     admin = register("audit-admin@example.com", role=UserRole.admin)
     mod = register("audit-mod@example.com", role=UserRole.moderator)

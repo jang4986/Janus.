@@ -31,11 +31,11 @@ def admin_list_users(
     search: str | None = None,
     role: UserRole | None = None,
     status: str | None = None,
-    is_active: bool | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[User]:
-    if status is not None and is_active is None:
+    is_active: bool | None = None
+    if status is not None:
         s = status.strip().lower()
         if s in {"active", "unbanned"}:
             is_active = True

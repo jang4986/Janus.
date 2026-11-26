@@ -19,10 +19,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.core.security import hash_password
 from app.db.session import Base, get_db
 from app.main import app
 from app.models import AIJob, User, UserRole, Video, VideoStatus
-from app.core.security import hash_password
 
 engine = create_engine(
     f"sqlite:///{TEST_DB_PATH.as_posix()}",

@@ -42,3 +42,13 @@ packages = ["src/app"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff]
+# NSFW-Detection/ chứa các file AI pipeline với ràng buộc import đặc biệt
+# (env var phải set trước `import tensorflow`) và BLE001 catches hợp lệ cho
+# hardware detection — không chỉnh sửa để tránh phá vỡ pipeline.
+extend-exclude = ["NSFW-Detection/"]
+
+[tool.ruff.lint]
+# alembic/versions/ là file tự sinh bởi Alembic; bỏ qua I001 cho thư mục này.
+per-file-ignores = { "alembic/versions/*.py" = ["I001"] }

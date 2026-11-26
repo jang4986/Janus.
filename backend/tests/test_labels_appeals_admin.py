@@ -414,7 +414,7 @@ def test_moderation_decision_reject_and_approve_success(client, register, seed_v
 def test_admin_user_management_filters_and_banning(client, register):
     admin = register("superadmin@example.com", role=UserRole.admin)
     user1 = register("target-user1@example.com", role=UserRole.user)
-    mod1 = register("target-mod1@example.com", role=UserRole.moderator)
+    register("target-mod1@example.com", role=UserRole.moderator)
     plain = register("unauth-user@example.com", role=UserRole.user)
 
     # 1. Non-admin accessing admin users -> 403 Forbidden

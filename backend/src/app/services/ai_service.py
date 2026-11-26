@@ -1,21 +1,14 @@
 import logging
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.ai.base import SAFE_LABEL, AnalysisReport, DetectorUnavailableError
 from app.ai.pipeline import analyse_video
 from app.core.config import get_settings
-from app.core.media import (
-    SUPPORTED_MP4_BRANDS,
-    SUPPORTED_MP4_CODECS,
-    validate_mp4_content,
-)
-from app.core.security import hash_opaque_token, new_opaque_token
 from app.db.session import SessionLocal
 from app.exceptions import NotFoundError
 from app.models import (
@@ -80,7 +73,7 @@ def _apply_mock_result(db: Session, job: AIJob, video: Video, note: str | None =
         )
     )
     job.status = JobStatus.succeeded
-    job.completed_at = datetime.now(timezone.utc)
+    job.completed_at = datetime.now(UTC)
     video.status = VideoStatus.published
     db.commit()
 
@@ -153,7 +146,7 @@ def _apply_analysis_report(db: Session, job: AIJob, video: Video, report: Analys
             job.error_message = pending_note
 
     job.status = JobStatus.succeeded
-    job.completed_at = datetime.now(timezone.utc)
+    job.completed_at = datetime.now(UTC)
     db.commit()
 
 
@@ -271,12 +264,12 @@ def get_ai_result(db: Session, video_id: UUID, requester: User) -> AIResultRespo
 
 
 # Backwards compatibility re-exports (chuyển sang đúng service domain)
-from app.core.security import as_aware  # noqa: F401, E402
-from app.services.auth_service import (  # noqa: F401, E402
+from app.core.security import as_aware  # noqa: F401
+from app.services.auth_service import (  # noqa: F401
     issue_refresh_token,
     purge_expired_revoked_tokens,
     revoke_all_refresh_tokens,
     revoke_refresh_token,
 )
-from app.services.storage_service import remove_local_file  # noqa: F401, E402
+from app.services.storage_service import remove_local_file  # noqa: F401
 

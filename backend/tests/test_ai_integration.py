@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 import pytest
+
 from app.ai import nsfw
 from app.ai.base import (
     SAFE_LABEL,

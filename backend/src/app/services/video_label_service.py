@@ -16,7 +16,6 @@ from app.models import (
     Video,
     VideoLabel,
     VideoStatus,
-    VideoVisibility,
 )
 from app.schemas import (
     ConfirmLabelsRequest,

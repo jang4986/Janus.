@@ -1,10 +1,9 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, status
 
-from app.db.session import get_db
-from app.dependencies import require_roles
+from app.dependencies import AdminUser, DbSession
 from app.models import User, UserRole, Video
 from app.schemas import (
     AdminAuditLogItem,
@@ -27,14 +26,14 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/users", response_model=list[AdminUserSummary])
 def admin_list_users(
+    user: AdminUser,
+    db: DbSession,
     search: str | None = None,
     role: UserRole | None = None,
     status: str | None = None,
     is_active: bool | None = None,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[User]:
     if status is not None and is_active is None:
         s = status.strip().lower()
@@ -54,13 +53,13 @@ def admin_list_users(
 
 @router.get("/audit-logs", response_model=list[AdminAuditLogItem])
 def admin_list_audit_logs(
+    user: AdminUser,
+    db: DbSession,
     action: str | None = None,
     moderator_id: UUID | None = None,
     video_id: UUID | None = None,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[dict]:
     return admin_service.list_audit_logs(
         db=db,
@@ -75,8 +74,8 @@ def admin_list_audit_logs(
 @router.get("/users/{user_id}", response_model=AdminUserDetail)
 def admin_get_user(
     user_id: UUID,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> User:
     return admin_service.get_user(db, user_id)
 
@@ -85,16 +84,16 @@ def admin_get_user(
 def admin_update_user_status(
     user_id: UUID,
     payload: AdminUserStatusUpdate,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> User:
     return admin_service.update_user_status(db, user_id, user, payload.is_active)
 
 
 @router.get("/moderators", response_model=list[AdminUserSummary])
 def admin_list_moderators(
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> list[User]:
     return admin_service.list_moderators(db)
 
@@ -103,8 +102,8 @@ def admin_list_moderators(
 def admin_update_user_role(
     user_id: UUID,
     payload: AdminRoleUpdate,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> User:
     return admin_service.update_user_role(db, user_id, user, payload.role)
 
@@ -116,16 +115,16 @@ def admin_update_user_role(
 )
 def admin_create_label(
     payload: LabelAdminCreate,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> dict:
     return admin_service.create_label(db, payload.name)
 
 
 @router.get("/labels", response_model=list[LabelAdminResponse])
 def admin_list_labels(
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> list[dict]:
     return admin_service.list_labels(db)
 
@@ -134,8 +133,8 @@ def admin_list_labels(
 def admin_update_label(
     label_id: UUID,
     payload: LabelAdminUpdate,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> dict:
     return admin_service.update_label(
         db, label_id, name=payload.name, is_active=payload.is_active
@@ -146,8 +145,8 @@ def admin_update_label(
 def admin_update_video_status(
     video_id: UUID,
     payload: AdminVideoStatusUpdate,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> Video:
     return admin_service.update_video_status(
         db, video_id, actor=user, status=payload.status, reason=payload.reason
@@ -157,9 +156,9 @@ def admin_update_video_status(
 @router.get("/overview", response_model=AdminStatsResponse)
 @router.get("/stats", response_model=AdminStatsResponse)
 def admin_get_stats(
-    days: int = Query(default=30, ge=1),
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
+    days: Annotated[int, Query(ge=1)] = 30,
 ) -> dict:
     return admin_service.get_system_stats(db, days)
 
@@ -167,7 +166,7 @@ def admin_get_stats(
 @router.get("/moderators/{moderator_id}/stats", response_model=ModeratorStatsResponse)
 def admin_get_moderator_stats(
     moderator_id: UUID,
-    user: User = Depends(require_roles(UserRole.admin)),
-    db: Session = Depends(get_db),
+    user: AdminUser,
+    db: DbSession,
 ) -> dict:
     return admin_service.get_moderator_stats(db, moderator_id)

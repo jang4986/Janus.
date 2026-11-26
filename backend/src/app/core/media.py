@@ -1,6 +1,5 @@
 """Media validation and processing utilities."""
 
-from pathlib import Path
 
 SUPPORTED_MP4_CODECS = (b"avc1", b"hvc1", b"hev1", b"av01", b"mp4v")
 SUPPORTED_MP4_BRANDS = (

@@ -20,11 +20,9 @@ from app.models import (
     utcnow,
 )
 from app.schemas.moderation import ModerationQueueItemResponse
-from app.schemas.video import LabelResponse
 from app.services.storage_service import get_storage_service
 from app.services.video_label_service import to_label_response
 from app.services.video_service import get_video_stream_url
-
 
 
 def create_report(db: Session, video_id: UUID, reporter: User, reason: str) -> Report:

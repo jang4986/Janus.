@@ -6,7 +6,15 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import InvalidInputError
-from app.models import Label, User, Video, VideoLabel, VideoLike, VideoStatus, VideoVisibility
+from app.models import (
+    Label,
+    User,
+    Video,
+    VideoLabel,
+    VideoLike,
+    VideoStatus,
+    VideoVisibility,
+)
 from app.schemas import SearchTagAuthor, SearchTagItem, SearchTagResponse
 from app.services.storage_service import get_storage_service
 

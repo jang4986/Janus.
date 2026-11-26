@@ -5,7 +5,12 @@
 - ``app.ai.placeholders``: các detector chưa triển khai (violence, sound, text).
 """
 
-from app.ai.base import AnalysisReport, Detection, DetectorNotImplementedError, DetectorUnavailableError
+from app.ai.base import (
+    AnalysisReport,
+    Detection,
+    DetectorNotImplementedError,
+    DetectorUnavailableError,
+)
 
 __all__ = [
     "AnalysisReport",

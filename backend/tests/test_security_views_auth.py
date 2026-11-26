@@ -14,10 +14,9 @@ Bao gồm:
    - Hết thời gian cooldown (sau 300s) được ghi nhận lượt xem mới.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
 import time
-from uuid import uuid4
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
@@ -80,7 +79,7 @@ def test_jwt_expired_token_returns_401(client, register):
 
     # Đặt thời điểm hết hạn lùi về quá khứ 10 phút
     settings = get_settings()
-    unverified_payload["exp"] = datetime.now(timezone.utc) - timedelta(minutes=10)
+    unverified_payload["exp"] = datetime.now(UTC) - timedelta(minutes=10)
 
     # Ký lại với secret key nhưng exp đã quá hạn
     expired_token = jwt.encode(

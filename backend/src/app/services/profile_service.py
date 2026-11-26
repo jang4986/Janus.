@@ -1,17 +1,16 @@
 """Nghiệp vụ profile, discriminator và đổi mật khẩu."""
 
 import secrets
-from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.exceptions import ConflictError, InvalidInputError
-from app.models import RefreshToken, User
+from app.models import User
 from app.schemas import ChangePasswordRequest, ProfileUpdate
 from app.services.storage_service import get_storage_service
 

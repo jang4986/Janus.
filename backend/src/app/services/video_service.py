@@ -27,7 +27,6 @@ from app.schemas import (
     AIResultResponse,
     FeedItem,
     FeedResponse,
-    LabelResponse,
     VideoUpdate,
 )
 from app.services.storage_service import StorageService, get_storage_service

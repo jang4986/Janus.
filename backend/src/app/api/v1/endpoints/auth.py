@@ -2,10 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.dependencies import bearer, current_user
+from app.dependencies import CurrentUser, DbSession, bearer
 from app.models import User
 from app.schemas import (
     LoginRequest,
@@ -24,19 +22,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def register(payload: UserCreate, db: DbSession) -> User:
     return auth_service.create_user(db, payload)
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: LoginRequest, db: DbSession) -> TokenResponse:
     user = auth_service.authenticate(db, payload)
     access_token, refresh_token = auth_service.create_session(db, user)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def refresh(payload: RefreshTokenRequest, db: DbSession) -> TokenResponse:
     access_token, refresh_token = auth_service.refresh_session(db, payload.refresh_token)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
@@ -44,9 +42,9 @@ def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -> Toke
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    user: User = Depends(current_user),
-    payload: LogoutRequest | None = Body(default=None),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    db: DbSession,
+    payload: Annotated[LogoutRequest | None, Body()] = None,
 ) -> None:
     if credentials is None:
         raise HTTPException(
@@ -73,7 +71,7 @@ def logout(
 )
 def forgot_password(
     payload: PasswordForgotRequest,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> PasswordForgotResponse:
     reset_token = auth_service.request_password_reset(db, payload.email)
     message = (
@@ -88,6 +86,6 @@ def forgot_password(
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def reset_password(
     payload: PasswordResetRequest,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> None:
     auth_service.reset_password(db, payload.token, payload.new_password)

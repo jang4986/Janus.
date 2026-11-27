@@ -3,7 +3,7 @@ import { apiFetch, apiUrl } from '@/shared/api/client'
 export function fetchFeed({ limit = 8, cursor } = {}) {
   const query = new URLSearchParams({ limit: String(limit) })
   if (cursor) query.set('cursor', cursor)
-  return apiFetch(`/v1/feed?${query}`, { auth: false })
+  return apiFetch(`/v1/feed?${query}`, { auth: true })
 }
 
 export function fetchMyVideos() {

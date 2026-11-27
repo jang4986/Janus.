@@ -16,15 +16,15 @@ Cách hiểu nhiệm vụ:
 - Cần khắc phục như vậy các trạng thái like/comment được đồng bộ từ database khi tải lại trang.
 
 Nhiệm vụ cần làm:
-- [ ] Đọc kỹ VideoSlide, FeedGrid, CommentDrawer, socialApi và các endpoint/fe service liên quan để xác nhận gap.
-- [ ] Xác định API backend trả về trạng thái like/bookmark/follow của user hiện tại hay chưa (schema LikeResponse, FollowResponse, BookmarkResponse, CommentResponse).
-- [ ] Cập nhật VideoSlide để khởi tạo liked/bookmarked/followed từ dữ liệu backend thay vì false cứng.
-- [ ] Cập nhật FeedGrid nếu cần để mỗi video card biết trạng thái like của user hiện tại.
-- [ ] Đảm bảo bình luận được re-fetch sau khi tạo/xóa (CommentDrawer đã làm rồi, cần verify).
-- [ ] Chạy git diff thường xuyên trong quá trình phát triển.
-- [ ] Thực hiện git add . và git commit sau khi hoàn thành.
-- [ ] Tạo report file tại work/report/ theo cấu trúc CLAUDE.md.
-- [ ] Cập nhật task file: đánh dấu tất cả checklist là hoàn thành.
+- [x] Đọc kỹ VideoSlide, FeedGrid, CommentDrawer, socialApi và các endpoint/fe service liên quan để xác nhận gap.
+- [x] Xác định API backend trả về trạng thái like/bookmark/follow của user hiện tại hay chưa (schema LikeResponse, FollowResponse, BookmarkResponse, CommentResponse).
+- [x] Cập nhật VideoSlide để khởi tạo liked/bookmarked/followed từ dữ liệu backend thay vì false cứng.
+- [x] Cập nhật FeedGrid nếu cần để mỗi video card biết trạng thái like của user hiện tại.
+- [x] Đảm bảo bình luận được re-fetch sau khi tạo/xóa (CommentDrawer đã làm rồi, cần verify).
+- [x] Chạy git diff thường xuyên trong quá trình phát triển.
+- [x] Thực hiện git add . và git commit sau khi hoàn thành.
+- [x] Tạo report file tại work/report/ theo cấu trúc CLAUDE.md.
+- [x] Cập nhật task file: đánh dấu tất cả checklist là hoàn thành.
 
 Check hoàn thành:
 - [x] Đã điều tra xác định root cause của issue #48

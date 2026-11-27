@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.enums import AppealStatus, ModerationAction
+from app.schemas.report import ReportResponse
 from app.schemas.video import LabelResponse, VideoResponse
 
 
@@ -27,6 +28,7 @@ class ModerationQueueItemResponse(VideoResponse):
     labels: list[LabelResponse] = Field(default_factory=list)
     queue_reason: str = "Chờ duyệt"
     report_count: int = 0
+    reports: list[ReportResponse] = Field(default_factory=list)
 
 
 class AppealCreate(BaseModel):

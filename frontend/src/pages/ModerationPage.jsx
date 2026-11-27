@@ -14,7 +14,7 @@ import { streamUrl } from '@/features/videos/api/videosApi'
 
 const TABS = [
   { id: 'queue', label: 'Hàng đợi video' },
-  { id: 'reports', label: 'Báo cáo' },
+  { id: 'reports', label: 'Tất cả báo cáo' },
 ]
 
 export default function ModerationPage() {
@@ -26,12 +26,12 @@ export default function ModerationPage() {
 
   const active = tab === 'queue' ? queue : reports
 
-  async function decide(kind, id, action) {
+  async function decide(kind, id, action, reason = '') {
     setBusyId(id)
     setError('')
     try {
-      if (kind === 'queue') await decideVideo(id, action)
-      else await decideReport(id, action)
+      if (kind === 'queue') await decideVideo(id, action, reason)
+      else await decideReport(id, action, reason)
       await Promise.all([queue.refresh(), reports.refresh()])
     } catch (requestError) {
       setError(requestError.detail || requestError.message)
@@ -47,7 +47,7 @@ export default function ModerationPage() {
           <span className="overline">Trạng thái video xem xét</span>
           <h1>Hàng đợi kiểm duyệt</h1>
           <p className="page-sub">
-            Duyệt, yêu cầu chỉnh sửa hoặc từ chối video trước khi xuất hiện trên feed.
+            Xem video, xem chi tiết báo cáo rồi duyệt hoặc từ chối video trước khi xuất hiện trên feed.
           </p>
         </div>
         <div className="tabs" role="tablist">
@@ -82,16 +82,49 @@ export default function ModerationPage() {
         <ul className="mod-list">
           {active.items.map((video) => (
             <li className="mod-card" key={video.id}>
-              <video className="mod-thumb" src={streamUrl(video.id)} controls playsInline preload="metadata" />
+              <div className="mod-video">
+                <video
+                  className="mod-player"
+                  src={streamUrl(video.id)}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={video.thumbnail_url}
+                />
+                {video.thumbnail_url && (
+                  <img className="mod-poster" src={video.thumbnail_url} alt="thumbnail" />
+                )}
+              </div>
               <div className="mod-body">
-                <div className="mod-title">
-                  <strong>{video.caption || video.original_filename}</strong>
-                  <span className="badge badge-warn">{VIDEO_STATUS_LABEL[video.status] || video.status}</span>
+                <div className="mod-header">
+                  <div className="mod-title">
+                    <strong>{video.caption || video.original_filename}</strong>
+                    <span className="badge badge-warn">{VIDEO_STATUS_LABEL[video.status] || video.status}</span>
+                  </div>
+                  <span className="mod-report-count">
+                    {video.report_count} báo cáo
+                  </span>
                 </div>
                 <p className="mod-meta">
                   @{video.owner_name || 'unknown'} · {formatBytes(video.size_bytes)} ·{' '}
                   {formatDateTime(video.created_at)}
                 </p>
+                {video.queue_reason && (
+                  <p className="mod-queue-reason">{video.queue_reason}</p>
+                )}
+                {video.reports && video.reports.length > 0 && (
+                  <div className="mod-reports">
+                    <strong className="mod-reports-label">Chi tiết báo cáo:</strong>
+                    <ul className="mod-reports-list">
+                      {video.reports.map((r) => (
+                        <li className="mod-report-item" key={r.id}>
+                          <span className="mod-report-reason">“{r.reason}”</span>
+                          <span className="mod-report-status">{r.status}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="mod-actions">
                   <button
                     type="button"
@@ -105,7 +138,12 @@ export default function ModerationPage() {
                     type="button"
                     className="button ghost"
                     disabled={busyId === video.id}
-                    onClick={() => decide('queue', video.id, 'reject')}
+                    onClick={() => {
+                      const reason = window.prompt('Lý do từ chối (bắt buộc):')
+                      if (reason !== null && reason.trim() !== '') {
+                        decide('queue', video.id, 'reject', reason.trim())
+                      }
+                    }}
                   >
                     <Icon name="x" size={15} /> Từ chối
                   </button>
@@ -119,9 +157,11 @@ export default function ModerationPage() {
           {active.items.map((report) => (
             <li className="mod-card" key={report.id}>
               <div className="mod-body">
-                <div className="mod-title">
-                  <strong>Báo cáo video</strong>
-                  <span className="badge badge-warn">Mở</span>
+                <div className="mod-header">
+                  <div className="mod-title">
+                    <strong>Báo cáo video</strong>
+                    <span className="badge badge-warn">Mở</span>
+                  </div>
                 </div>
                 <p className="mod-reason">“{report.reason}”</p>
                 <p className="mod-meta">Video: {report.video_caption || report.video_id}</p>
@@ -138,9 +178,14 @@ export default function ModerationPage() {
                     type="button"
                     className="button ghost"
                     disabled={busyId === report.id}
-                    onClick={() => decide('reports', report.id, 'reject')}
+                    onClick={() => {
+                      const reason = window.prompt('Lý do bác bỏ (bắt buộc):')
+                      if (reason !== null && reason.trim() !== '') {
+                        decide('reports', report.id, 'reject', reason.trim())
+                      }
+                    }}
                   >
-                    Bác bỏ báo cáo
+                    <Icon name="x" size={15} /> Bác bỏ báo cáo
                   </button>
                 </div>
               </div>

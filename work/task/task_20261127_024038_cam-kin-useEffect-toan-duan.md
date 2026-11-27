@@ -21,9 +21,9 @@ Nhiệm vụ cần làm:
 - [x] Xử lý các chỗ fetch-on-mount an toàn (đã verify: gọi API bên trong useEffect, không gọi trong render body).
 - [x] Giữ nguyên 4 chỗ bắt buộc sử dụng useEffect (VideoSlide, UploadDropzone, useAiAnalysis, AuthContext).
 - [x] Chạy git diff thường xuyên.
-- [ ] Thực hiện git add . và git commit sau khi hoàn thành.
-- [ ] Tạo report file tại work/report/ theo cấu trúc CLAUDE.md.
-- [ ] Cập nhật task file checklist hoàn tất.
+- [x] Thực hiện git add . và git commit sau khi hoàn thành.
+- [x] Tạo report file tại work/report/ theo cấu trúc CLAUDE.md.
+- [x] Cập nhật task file checklist hoàn tất.
 
 Check hoàn thành:
 - [x] Xác nhận cách xử lý fetch-on-mount với người dùng
@@ -31,6 +31,6 @@ Check hoàn thành:
 - [x] Các chỗ fetch-on-mount được xử lý an toàn
 - [x] 4 chỗ useEffect bắt buộc được giữ nguyên (VideoSlide, UploadDropzone, useAiAnalysis, AuthContext)
 - [x] Git diff kiểm tra
-- [ ] Git commit hoàn tất
-- [ ] Report file tạo thành công
-- [ ] Task checklist hoàn tất
+- [x] Git commit hoàn tất
+- [x] Report file tạo thành công
+- [x] Task checklist hoàn tất

@@ -176,12 +176,16 @@ export default function VideoSlide({
   async function handleLike() {
     if (!isAuthenticated) return
     const previous = liked
+    const previousCount = likeCount
     setLiked(!previous)
+    setLikeCount(previousCount + (previous ? -1 : 1))
     try {
       const result = await toggleLike(video.id)
       setLiked(Boolean(result.is_liked))
+      setLikeCount(Number(result.like_count ?? previousCount))
     } catch {
       setLiked(previous)
+      setLikeCount(previousCount)
     }
   }
 
@@ -298,7 +302,7 @@ export default function VideoSlide({
     }
   }
 
-  const likeCount = video.likes || video.like_count || 0
+  const [likeCount, setLikeCount] = useState(Number(video.likes || video.like_count || 0))
 
   function handleSeekStart(e) {
     const el = videoRef.current
@@ -412,7 +416,7 @@ export default function VideoSlide({
           aria-label="Thích"
         >
           <Icon name={liked ? 'heart-filled' : 'heart'} size={22} />
-          <span>{(likeCount + (liked ? 1 : 0)).toLocaleString('vi-VN')}</span>
+          <span>{likeCount.toLocaleString('vi-VN')}</span>
         </button>
         <button
           type="button"

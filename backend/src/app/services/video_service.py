@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import get_settings
@@ -20,8 +20,11 @@ from app.models import (
     User,
     UserRole,
     Video,
+    VideoBookmark,
+    VideoLike,
     VideoStatus,
     VideoVisibility,
+    UserFollow,
 )
 from app.schemas import (
     AIResultResponse,
@@ -168,7 +171,7 @@ def list_owned_videos(db: Session, owner: User) -> list[Video]:
 
 
 def list_published_feed(
-    db: Session, *, limit: int, cursor: datetime | None = None
+    db: Session, *, limit: int, cursor: datetime | None = None, requester: User | None = None
 ) -> FeedResponse:
     conditions = [
         Video.status == VideoStatus.published,
@@ -212,6 +215,45 @@ def list_published_feed(
 
     has_more = len(videos) > limit
     items = videos[:limit]
+
+    # Xác định trạng thái like/bookmark/follow của người dùng hiện tại cho mỗi video.
+    user_liked: set[UUID] = set()
+    user_bookmarked: set[UUID] = set()
+    user_following: set[UUID] = set()
+    like_counts: dict[UUID, int] = {}
+    if requester is not None:
+        rows = db.execute(
+            select(VideoLike.video_id).where(
+                VideoLike.user_id == requester.id,
+                VideoLike.video_id.in_([video.id for video in items]),
+            )
+        ).scalars()
+        user_liked = set(rows)
+
+        rows = db.execute(
+            select(VideoBookmark.video_id).where(
+                VideoBookmark.user_id == requester.id,
+                VideoBookmark.video_id.in_([video.id for video in items]),
+            )
+        ).scalars()
+        user_bookmarked = set(rows)
+
+        following_ids = {video.owner_id for video in items if video.owner_id}
+        rows = db.execute(
+            select(UserFollow.following_id).where(
+                UserFollow.follower_id == requester.id,
+                UserFollow.following_id.in_(following_ids),
+            )
+        ).scalars()
+        user_following = set(rows)
+
+        count_rows = db.execute(
+            select(VideoLike.video_id, func.count()).where(
+                VideoLike.video_id.in_([video.id for video in items])
+            ).group_by(VideoLike.video_id)
+        ).all()
+        like_counts = {video_id: count for video_id, count in count_rows}
+
     feed_items = [
         FeedItem(
             id=video.id,
@@ -224,6 +266,11 @@ def list_published_feed(
             created_at=video.created_at,
             view_count=getattr(video, "view_count", 0) or 0,
             owner_name=video.owner_name,
+            owner_id=video.owner_id,
+            is_liked=video.id in user_liked,
+            is_bookmarked=video.id in user_bookmarked,
+            like_count=like_counts.get(video.id, 0),
+            is_following=(video.owner_id in user_following if video.owner_id else False),
         )
         for video in items
     ]

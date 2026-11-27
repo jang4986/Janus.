@@ -76,8 +76,9 @@ def feed(
     db: DbSession,
     limit: Annotated[int, Query(ge=1, le=20)] = 8,
     cursor: Annotated[datetime | None, Query()] = None,
+    user: OptionalUser = None,
 ) -> FeedResponse:
-    return video_service.list_published_feed(db, limit=limit, cursor=cursor)
+    return video_service.list_published_feed(db, limit=limit, cursor=cursor, requester=user)
 
 
 @router.get("/videos/search", response_model=SearchTagResponse)

@@ -90,10 +90,8 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
             else:
                 queue_reason = f"AI nghi vấn vi phạm ({top_label.label.name} {conf_pct}%)"
         elif report_count > 0:
-            sample_reason = open_reports[0].reason.strip()
-            if len(sample_reason) > 40:
-                sample_reason = sample_reason[:37] + "..."
-            queue_reason = f"Bị người dùng báo cáo ({report_count} lượt: {sample_reason})"
+            all_reasons = "; ".join(r.reason.strip() for r in open_reports)
+            queue_reason = f"Bị người dùng báo cáo ({report_count} lượt: {all_reasons})"
         else:
             queue_reason = "Chờ kiểm duyệt thủ công"
 
@@ -101,7 +99,6 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
         thumbnail_url = storage.get_thumbnail_url(
             storage.build_thumbnail_key(video.id)
         )
-
 
         item = ModerationQueueItemResponse(
             id=video.id,
@@ -119,6 +116,9 @@ def moderation_queue(db: Session) -> list[ModerationQueueItemResponse]:
             labels=labels,
             queue_reason=queue_reason,
             report_count=report_count,
+            reports=[
+                ReportResponse.model_validate(r) for r in open_reports
+            ],
         )
         items.append(item)
     return items

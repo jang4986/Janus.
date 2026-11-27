@@ -30,6 +30,11 @@ class FeedItem(BaseModel):
     created_at: datetime
     view_count: int = 0
     owner_name: str | None = None
+    owner_id: UUID | None = None
+    is_liked: bool = False
+    is_bookmarked: bool = False
+    like_count: int = 0
+    is_following: bool = False
 
 
 class VideoViewResponse(BaseModel):

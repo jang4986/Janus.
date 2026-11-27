@@ -54,9 +54,10 @@ export default function VideoSlide({
   const [volume, setVolume] = useState(0.5)
   const [reporting, setReporting] = useState(false)
   const [showComments, setShowComments] = useState(false)
-  const [liked, setLiked] = useState(false)
-  const [followed, setFollowed] = useState(false)
-  const [bookmarked, setBookmarked] = useState(false)
+  const [liked, setLiked] = useState(Boolean(video.is_liked))
+  const [followed, setFollowed] = useState(Boolean(video.is_following) && Boolean(video.owner_id))
+  const [bookmarked, setBookmarked] = useState(Boolean(video.is_bookmarked))
+  const [likeError, setLikeError] = useState(null)
   const [showVolume, setShowVolume] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [captionExpanded, setCaptionExpanded] = useState(false)
@@ -80,9 +81,6 @@ export default function VideoSlide({
     setSource(video.stream_url || fallbackStream)
     setMediaError('')
     setPlaying(false)
-    setLiked(false)
-    setFollowed(false)
-    setBookmarked(false)
     setMuted(true)
     setVolume(0.5)
     setShowVolume(false)
@@ -177,14 +175,25 @@ export default function VideoSlide({
   }
 
   async function handleLike() {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      setLikeError('Bạn cần đăng nhập để-thích video.')
+      return
+    }
     const previous = liked
+    const previousCount = likeCount
     setLiked(!previous)
+    setLikeCount(previousCount + (previous ? -1 : 1))
+    setLikeError(null)
     try {
       const result = await toggleLike(video.id)
       setLiked(Boolean(result.is_liked))
-    } catch {
+      setLikeCount(Number(result.like_count ?? previousCount))
+      setLikeError(null)
+    } catch (err) {
+      console.error('Like thất bại:', err)
+      setLikeError(err.detail || 'Không thể-thích video. Vui lòng thử lại sau.')
       setLiked(previous)
+      setLikeCount(previousCount)
     }
   }
 
@@ -301,7 +310,7 @@ export default function VideoSlide({
     }
   }
 
-  const likeCount = video.likes || video.like_count || 0
+  const [likeCount, setLikeCount] = useState(Number(video.likes || video.like_count || 0))
 
   function handleSeekStart(e) {
     const el = videoRef.current
@@ -415,8 +424,9 @@ export default function VideoSlide({
           aria-label="Thích"
         >
           <Icon name={liked ? 'heart-filled' : 'heart'} size={22} />
-          <span>{(likeCount + (liked ? 1 : 0)).toLocaleString('vi-VN')}</span>
+          <span>{likeCount.toLocaleString('vi-VN')}</span>
         </button>
+        {likeError && <span className="slide-error">{likeError}</span>}
         <button
           type="button"
           className={`rail-button ${bookmarked ? 'active' : ''}`}

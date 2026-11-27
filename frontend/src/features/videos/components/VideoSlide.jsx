@@ -57,6 +57,7 @@ export default function VideoSlide({
   const [liked, setLiked] = useState(Boolean(video.is_liked))
   const [followed, setFollowed] = useState(Boolean(video.is_following) && Boolean(video.owner_id))
   const [bookmarked, setBookmarked] = useState(Boolean(video.is_bookmarked))
+  const [likeError, setLikeError] = useState(null)
   const [showVolume, setShowVolume] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [captionExpanded, setCaptionExpanded] = useState(false)
@@ -174,16 +175,23 @@ export default function VideoSlide({
   }
 
   async function handleLike() {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      setLikeError('Bạn cần đăng nhập để-thích video.')
+      return
+    }
     const previous = liked
     const previousCount = likeCount
     setLiked(!previous)
     setLikeCount(previousCount + (previous ? -1 : 1))
+    setLikeError(null)
     try {
       const result = await toggleLike(video.id)
       setLiked(Boolean(result.is_liked))
       setLikeCount(Number(result.like_count ?? previousCount))
-    } catch {
+      setLikeError(null)
+    } catch (err) {
+      console.error('Like thất bại:', err)
+      setLikeError(err.detail || 'Không thể-thích video. Vui lòng thử lại sau.')
       setLiked(previous)
       setLikeCount(previousCount)
     }
@@ -418,6 +426,7 @@ export default function VideoSlide({
           <Icon name={liked ? 'heart-filled' : 'heart'} size={22} />
           <span>{likeCount.toLocaleString('vi-VN')}</span>
         </button>
+        {likeError && <span className="slide-error">{likeError}</span>}
         <button
           type="button"
           className={`rail-button ${bookmarked ? 'active' : ''}`}

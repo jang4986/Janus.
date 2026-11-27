@@ -247,6 +247,9 @@ def list_published_feed(
         ).scalars()
         user_following = set(rows)
 
+    # Luôn đếm tổng số like của mỗi video để like_count hiển thị chính xác
+    # đối với mọi người, kể cả chưa đăng nhập (is_liked vẫn false nếu không có requester).
+    if items:
         count_rows = db.execute(
             select(VideoLike.video_id, func.count()).where(
                 VideoLike.video_id.in_([video.id for video in items])

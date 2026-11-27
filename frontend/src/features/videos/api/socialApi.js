@@ -1,7 +1,7 @@
 import { apiFetch } from '@/shared/api/client'
 
 export function toggleLike(videoId) {
-  return apiFetch(`/v1/videos/${videoId}/like`, { method: 'POST' })
+  return apiFetch(`/v1/videos/${videoId}/like`, { method: 'POST', auth: true })
 }
 
 export function listComments(videoId, { page = 1, pageSize = 20 } = {}) {

@@ -34,6 +34,13 @@ DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
 
+def _require_regular_user(user: User) -> None:
+    """Chỉ cho phép người dùng thông thường (role=user) thực hiện thao tác xã hội.
+    Moderator và Admin không được like, bookmark, comment."""
+    if user.role != UserRole.user:
+        raise ForbiddenError("Chỉ người dùng thông thường mới được thực hiện thao tác này")
+
+
 def _page(page: int, page_size: int) -> tuple[int, int, int]:
     page = max(page, 1)
     page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
@@ -54,6 +61,7 @@ def _published_video(db: Session, video_id: UUID) -> Video:
 
 
 def toggle_like(db: Session, video_id: UUID, user: User) -> LikeResponse:
+    _require_regular_user(user)
     _published_video(db, video_id)
     like = db.get(VideoLike, {"video_id": video_id, "user_id": user.id})
     if like is None:
@@ -71,6 +79,7 @@ def toggle_like(db: Session, video_id: UUID, user: User) -> LikeResponse:
 
 
 def toggle_bookmark(db: Session, video_id: UUID, user: User) -> BookmarkResponse:
+    _require_regular_user(user)
     _published_video(db, video_id)
     bookmark = db.get(VideoBookmark, {"video_id": video_id, "user_id": user.id})
     if bookmark is None:
@@ -134,6 +143,7 @@ def list_comments(
 def create_comment(
     db: Session, video_id: UUID, user: User, payload: CommentCreate
 ) -> VideoComment:
+    _require_regular_user(user)
     video = _published_video(db, video_id)
     if not video.allow_comments:
         raise ForbiddenError("Video hiện không cho phép bình luận")

@@ -40,7 +40,7 @@ packages = ["src/app"]
 # Cấu hình kiểm thử cho layout src/: đặt backend/src vào sys.path để `import app...` hoạt động.
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-testpaths = ["tests"]
+testpaths = ["tests", "unit_tests"]
 
 [tool.ruff.lint]
 ignore = ["B008"]

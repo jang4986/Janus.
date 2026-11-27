@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import get_settings
+from app.core.media import validate_mp4_content
 from app.exceptions import (
     ForbiddenError,
     InvalidInputError,
@@ -26,11 +27,78 @@ from app.schemas import (
     AIResultResponse,
     FeedItem,
     FeedResponse,
-    LabelResponse,
     VideoUpdate,
 )
-from app.services.ai_service import validate_mp4_content
-from app.services.storage_service import get_storage_service
+from app.services.storage_service import StorageService, get_storage_service
+
+
+def can_access_video(video: Video, requester: User | None) -> bool:
+    """Kiểm tra quyền truy cập video: video public/published hoặc requester là chủ video / mod / admin."""
+    video_status = getattr(video.status, "value", video.status)
+    video_visibility = getattr(video.visibility, "value", video.visibility)
+    is_public = (video_status == VideoStatus.published.value or video_status == VideoStatus.published) and (
+        video_visibility == VideoVisibility.public.value or video_visibility == VideoVisibility.public
+    )
+    if is_public:
+        return True
+    if requester is None:
+        return False
+    is_owner = video.owner_id == requester.id
+    user_role = getattr(requester.role, "value", requester.role)
+    is_staff = user_role in {
+        UserRole.moderator.value,
+        UserRole.admin.value,
+        UserRole.moderator,
+        UserRole.admin,
+    }
+    return is_owner or is_staff
+
+
+def get_video_stream_url(video: Video, storage: StorageService | None = None) -> str:
+    """Sinh URL stream phù hợp dựa trên storage driver (S3 public/presigned hoặc API streaming endpoint)."""
+    if storage is None:
+        storage = get_storage_service()
+    if storage.is_s3 and not storage.is_existing_local_path(video.storage_path):
+        return storage.get_stream_url(video.storage_path, public=True)
+    return f"/api/v1/videos/{video.id}/stream"
+
+
+def resolve_video_thumbnail(
+    db: Session, video_id: UUID, requester: User | None
+) -> Path | str:
+    """Kiểm tra quyền truy cập và giải quyết đường dẫn file hoặc URL thumbnail."""
+    video = db.get(Video, video_id)
+    if video is None or video.is_deleted:
+        raise NotFoundError("Không tìm thấy ảnh bìa")
+    if not can_access_video(video, requester):
+        raise NotFoundError("Không tìm thấy ảnh bìa")
+
+    storage = get_storage_service()
+    thumbnail_key = storage.build_thumbnail_key(video_id)
+    if storage.is_s3:
+        thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
+        if thumbnail_url.startswith("/api/v1/videos/"):
+            try:
+                with storage.download_to_temp(video.storage_path) as video_path:
+                    from app.services.thumbnail_service import extract_first_frame
+                    thumbnail = extract_first_frame(video_path)
+                storage.upload_thumbnail(thumbnail_key, thumbnail)
+                thumbnail_url = storage.get_thumbnail_url(thumbnail_key)
+            except Exception as exc:
+                raise NotFoundError("Không thể tạo ảnh xem trước cho video này") from exc
+        return thumbnail_url
+
+    path = Path(get_settings().upload_dir) / thumbnail_key
+    if not path.is_file():
+        try:
+            with storage.download_to_temp(video.storage_path) as video_path:
+                from app.services.thumbnail_service import extract_first_frame
+                thumbnail = extract_first_frame(video_path)
+            storage.upload_thumbnail(thumbnail_key, thumbnail)
+        except Exception as exc:
+            raise NotFoundError("Không thể tạo ảnh xem trước cho video này") from exc
+    return path
+
 
 
 def upload_video(
@@ -148,14 +216,9 @@ def list_published_feed(
         FeedItem(
             id=video.id,
             caption=video.caption,
-            stream_url=(
-                storage.get_stream_url(video.storage_path, public=True)
-                if storage.is_s3
-                and not storage.is_existing_local_path(video.storage_path)
-                else f"/api/v1/videos/{video.id}/stream"
-            ),
+            stream_url=get_video_stream_url(video, storage),
             thumbnail_url=storage.get_thumbnail_url(
-                f"thumbnails/first-frame/{video.id}.jpg"
+                storage.build_thumbnail_key(video.id)
             ),
             allow_comments=video.allow_comments,
             created_at=video.created_at,
@@ -172,37 +235,9 @@ def list_published_feed(
 
 
 def get_ai_result(db: Session, video_id: UUID, requester: User) -> AIResultResponse:
-    """Chỉ chủ video hoặc moderator/admin xem được kết quả phân tích."""
-    video = db.get(Video, video_id)
-    allowed_roles = {UserRole.moderator, UserRole.admin}
-    if (
-        video is None
-        or video.is_deleted
-        or (video.owner_id != requester.id and requester.role not in allowed_roles)
-    ):
-        raise NotFoundError("Không tìm thấy video")
-    job = db.scalar(
-        select(AIJob)
-        .where(AIJob.video_id == video_id)
-        .order_by(AIJob.created_at.desc())
-    )
-    labels = [
-        LabelResponse(
-            name=item.label.name,
-            confidence=item.confidence,
-            level=item.level,
-            source=item.source,
-        )
-        for item in video.labels
-    ]
-    return AIResultResponse(
-        video_id=video_id,
-        job_status=job.status.value if job else "unknown",
-        transcript=job.transcript if job else None,
-        error_message=job.error_message if job else None,
-        labels=labels,
-        video_status=video.status,
-    )
+    """Chỉ chủ video hoặc moderator/admin xem được kết quả phân tích (ủy quyền sang ai_service)."""
+    from app.services import ai_service
+    return ai_service.get_ai_result(db, video_id, requester)
 
 
 def soft_delete_video(db: Session, video_id: UUID, owner: User) -> None:
@@ -247,18 +282,20 @@ def resolve_stream_target(
     video = db.get(Video, video_id)
     if video is None or video.is_deleted:
         raise NotFoundError("Không tìm thấy video")
-    is_owner = requester is not None and video.owner_id == requester.id
-    is_staff = requester is not None and requester.role in {
-        UserRole.moderator,
-        UserRole.admin,
-    }
-    is_public = (
-        video.status == VideoStatus.published
-        and video.visibility == VideoVisibility.public
-    )
-    if not is_public and not (is_owner or is_staff):
+    if not can_access_video(video, requester):
         raise NotFoundError("Không tìm thấy video")
     storage = get_storage_service()
+    if storage.is_s3 and not storage.is_existing_local_path(video.storage_path):
+        is_public = (
+            video.status == VideoStatus.published
+            and video.visibility == VideoVisibility.public
+        )
+        return storage.get_stream_url(video.storage_path, public=is_public)
+    path = Path(video.storage_path)
+    if not path.is_file():
+        raise NotFoundError("Không tìm thấy tệp video")
+    return path
+
     if storage.is_s3 and not storage.is_existing_local_path(video.storage_path):
         return storage.get_stream_url(video.storage_path, public=is_public)
     path = Path(video.storage_path)

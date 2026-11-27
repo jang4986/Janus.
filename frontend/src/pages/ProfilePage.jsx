@@ -193,7 +193,7 @@ export default function ProfilePage() {
           <h1>
             {user.display_name} <span className="profile-id">#{user.discriminator ?? ''}</span>
           </h1>
-          <p className="page-sub">{user.email}</p>
+          <p className="page-sub" data-testid="user-email">{user.email}</p>
         </div>
         <div className="stat-row">
           <button

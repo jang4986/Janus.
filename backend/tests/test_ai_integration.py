@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 import pytest
+
 from app.ai import nsfw
 from app.ai.base import (
     SAFE_LABEL,
@@ -97,10 +98,11 @@ def _unavailable(path) -> AnalysisReport:
     raise DetectorUnavailableError("chưa cài tensorflow")
 
 
-@pytest.mark.skip(reason="Bỏ qua kiểm thử fallback AI khi pipeline AI chưa sẵn sàng")
 def test_analysis_falls_back_to_mock_when_ai_unavailable(monkeypatch, tmp_path):
     video_id, job_id = _seed_job(tmp_path)
     monkeypatch.setattr(services, "analyse_video", _unavailable)
+    auto = get_settings().model_copy(update={"ai_analysis_mode": "auto"})
+    monkeypatch.setattr(services, "get_settings", lambda: auto)
 
     services.run_video_analysis(video_id)
 
@@ -109,8 +111,51 @@ def test_analysis_falls_back_to_mock_when_ai_unavailable(monkeypatch, tmp_path):
         video = db.get(Video, video_id)
         assert job.status is JobStatus.succeeded
         assert video.status is VideoStatus.published
-        assert "chưa sẵn sàng" in job.transcript
+        assert job.transcript == services.MOCK_TRANSCRIPT
+        assert job.error_message is not None
+        assert "chưa sẵn sàng" in job.error_message
         assert {video_label.label.name for video_label in video.labels} == {SAFE_LABEL}
+
+
+def test_analysis_off_mode_applies_mock_without_calling_detector(monkeypatch, tmp_path):
+    video_id, job_id = _seed_job(tmp_path)
+
+    def _must_not_run(path):
+        raise AssertionError("analyse_video không được gọi khi AI_ANALYSIS_MODE=off")
+
+    monkeypatch.setattr(services, "analyse_video", _must_not_run)
+    off = get_settings().model_copy(update={"ai_analysis_mode": "off"})
+    monkeypatch.setattr(services, "get_settings", lambda: off)
+
+    assert not hasattr(services, "run_mock_analysis")
+    services.run_video_analysis(video_id)
+
+    with SessionLocal() as db:
+        job = db.get(AIJob, job_id)
+        video = db.get(Video, video_id)
+        assert job.status is JobStatus.succeeded
+        assert job.transcript == services.MOCK_TRANSCRIPT
+        assert video.status is VideoStatus.published
+        assert {video_label.label.name for video_label in video.labels} == {SAFE_LABEL}
+
+
+def test_analysis_off_mode_publishes_when_thumbnail_fails(monkeypatch, tmp_path):
+    video_id, job_id = _seed_job(tmp_path)
+
+    def _thumbnail_fails(path):
+        raise RuntimeError("không trích được frame")
+
+    monkeypatch.setattr(services, "extract_first_frame", _thumbnail_fails)
+    off = get_settings().model_copy(update={"ai_analysis_mode": "off"})
+    monkeypatch.setattr(services, "get_settings", lambda: off)
+
+    services.run_video_analysis(video_id)
+
+    with SessionLocal() as db:
+        job = db.get(AIJob, job_id)
+        video = db.get(Video, video_id)
+        assert job.status is JobStatus.succeeded
+        assert video.status is VideoStatus.published
 
 
 def test_analysis_required_mode_marks_job_failed(monkeypatch, tmp_path):

@@ -6,7 +6,11 @@
   "directories": {
     "doc": "docs"
   },
-  "scripts": {},
+  "scripts": {
+    "e2e:prepare": "dotenv run -f .env.e2e -- bash scripts/prepare.sh",
+    "e2e:test": "dotenv run -f .env.e2e -- playwright test",
+    "e2e:test-debug": "dotenv run -f .env.e2e -- playwright test --debug"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -14,6 +18,7 @@
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
-    "dotenv": "^18.0.9"
+    "dotenv": "^18.0.9",
+    "dotenv-cli": "^11.1.0"
   }
 }

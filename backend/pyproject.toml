@@ -5,6 +5,7 @@ description = "PBL6 short-video moderation platform"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.13,<2",
+    "asyncpg>=0.32.0",
     "boto3>=1.43.123",
     "email-validator>=2.2,<3",
     "fastapi[standard]>=0.115,<1",
@@ -13,7 +14,7 @@ dependencies = [
     "pydantic-settings>=2.6,<3",
     "pyjwt>=2.9,<3",
     "python-multipart>=0.0.20,<1",
-    "sqlalchemy>=2.0,<3",
+    "sqlalchemy[asyncio]>=2.0,<3",
     "tensorflow>=2.21.0",
     "torch>=2.15.0",
     "uvicorn[standard]>=0.30,<1",
@@ -42,5 +43,12 @@ packages = ["src/app"]
 pythonpath = ["src"]
 testpaths = ["tests", "unit_tests"]
 
+[tool.ruff]
+# NSFW-Detection/ chứa các file AI pipeline với ràng buộc import đặc biệt
+# (env var phải set trước `import tensorflow`) và BLE001 catches hợp lệ cho
+# hardware detection — không chỉnh sửa để tránh phá vỡ pipeline.
+extend-exclude = ["NSFW-Detection/"]
+
 [tool.ruff.lint]
-ignore = ["B008"]
+# alembic/versions/ là file tự sinh bởi Alembic; bỏ qua I001 cho thư mục này.
+per-file-ignores = { "alembic/versions/*.py" = ["I001"] }

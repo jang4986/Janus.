@@ -3,11 +3,11 @@ import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import jwt
-from fastapi import Depends, HTTPException, status
+
 from app.core.config import get_settings
 from app.models import User
 
@@ -33,7 +33,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def create_access_token(user: User) -> str:
     settings = get_settings()
-    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    expires = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": str(user.id),
         "role": user.role.value,
@@ -60,3 +60,9 @@ def hash_opaque_token(raw: str) -> str:
 
 def opaque_tokens_equal(raw: str, stored_hash: str) -> bool:
     return hmac.compare_digest(hash_opaque_token(raw), stored_hash)
+
+
+def as_aware(value: datetime) -> datetime:
+    """SQLite trả datetime naive; chuẩn hoá về UTC để so sánh an toàn."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+

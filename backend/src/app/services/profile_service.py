@@ -1,17 +1,16 @@
 """Nghiệp vụ profile, discriminator và đổi mật khẩu."""
 
 import secrets
-from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.exceptions import ConflictError, InvalidInputError
-from app.models import RefreshToken, User
+from app.models import User
 from app.schemas import ChangePasswordRequest, ProfileUpdate
 from app.services.storage_service import get_storage_service
 
@@ -76,17 +75,25 @@ def change_password(
         raise InvalidInputError("Mật khẩu hiện tại không chính xác")
     if verify_password(payload.new_password, user.password_hash):
         raise InvalidInputError("Mật khẩu mới không được trùng mật khẩu cũ")
-    now = datetime.now(UTC)
     user.password_hash = hash_password(payload.new_password)
-    db.execute(
-        update(RefreshToken)
-        .where(
-            RefreshToken.user_id == user.id,
-            RefreshToken.revoked_at.is_(None),
-        )
-        .values(revoked_at=now)
-    )
+    from app.services.auth_service import revoke_all_refresh_tokens
+    revoke_all_refresh_tokens(db, user.id)
     db.commit()
+
+
+def resolve_avatar_target(user_id: str | object) -> Path | None:
+    """Trả về đường dẫn tệp ảnh đại diện cục bộ hoặc None nếu không tồn tại/chế độ S3."""
+    settings = get_settings()
+    if settings.storage_driver.strip().lower() == "s3":
+        return None
+    avatars_dir = Path(settings.local_storage_root) / "avatars" / str(user_id)
+    if not avatars_dir.is_dir():
+        return None
+    for file_path in avatars_dir.iterdir():
+        if file_path.is_file():
+            return file_path
+    return None
+
 
 
 def update_avatar(

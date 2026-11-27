@@ -2,6 +2,7 @@ import time
 from uuid import uuid4
 
 import pytest
+
 from app.models import VideoStatus
 from app.services import view_tracking_service
 

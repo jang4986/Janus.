@@ -16,7 +16,6 @@ from app.models import (
     Video,
     VideoLabel,
     VideoStatus,
-    VideoVisibility,
 )
 from app.schemas import (
     ConfirmLabelsRequest,
@@ -39,27 +38,27 @@ def _get_video(db: Session, video_id: UUID) -> Video:
 
 
 def _can_view(video: Video, requester: User | None) -> bool:
-    if (
-        video.status == VideoStatus.published
-        and video.visibility == VideoVisibility.public
-    ):
-        return True
-    return requester is not None and (
-        requester.id == video.owner_id
-        or requester.role in {UserRole.moderator, UserRole.admin}
+    from app.services.video_service import can_access_video
+    return can_access_video(video, requester)
+
+
+def to_label_response(item: VideoLabel) -> LabelResponse:
+    """Ánh xạ một đối tượng VideoLabel sang DTO LabelResponse."""
+    return LabelResponse(
+        name=item.label.name if item.label else "",
+        confidence=item.confidence,
+        level=item.level,
+        source=item.source,
     )
 
 
-def _label_response(video: Video) -> list[LabelResponse]:
-    return [
-        LabelResponse(
-            name=item.label.name,
-            confidence=item.confidence,
-            level=item.level,
-            source=item.source,
-        )
-        for item in video.labels
-    ]
+def to_label_responses(video: Video) -> list[LabelResponse]:
+    """Ánh xạ danh sách VideoLabel của video sang danh sách LabelResponse."""
+    return [to_label_response(item) for item in video.labels if item.label is not None]
+
+
+_label_response = to_label_responses
+
 
 
 def list_video_labels(

@@ -60,7 +60,7 @@ uv run --directory backend uvicorn app.main:app --reload --host 127.0.0.1 --port
 BACKEND_PID=$!
 
 # Bật Frontend
-npm run --prefix frontend dev &
+npm run --prefix frontend dev -- --host 127.0.0.1 &
 FRONTEND_PID=$!
 
 # Dọn dẹp tiến trình khi nhận tín hiệu dừng

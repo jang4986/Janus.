@@ -1,0 +1,92 @@
+name: Security Tests (JWT & Rate-Limiting)
+
+on:
+  push:
+    branches: [ "**" ]
+    paths:
+      - "backend/**"
+      - ".github/workflows/security-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-tests:
+    name: Run Security Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ========================================
+      # 1. Checkout repository
+      # ========================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ========================================
+      # 2. Cài đặt uv package manager
+      # ========================================
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      # ========================================
+      # 3. Cài đặt Python 3.12
+      # ========================================
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      # ========================================
+      # 4. Đồng bộ thư viện backend
+      # ========================================
+      - name: Sync backend dependencies
+        run: uv sync --directory backend
+
+      # ========================================
+      # 5. Thực thi duy nhất file test bảo mật
+      # ========================================
+      - name: Run Security Tests & Generate Report
+        id: run_security_tests
+        run: |
+          mkdir -p reports
+          echo "# 🛡️ BÁO CÁO KIỂM THỬ BẢO MẬT (SECURITY TEST REPORT)" > SECURITY_TEST_REPORT.md
+          echo "" >> SECURITY_TEST_REPORT.md
+          echo "- **Thời gian chạy:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> SECURITY_TEST_REPORT.md
+          echo "- **Workflow:** \`${{ github.workflow }}\`" >> SECURITY_TEST_REPORT.md
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> SECURITY_TEST_REPORT.md
+          echo "- **Commit SHA:** \`${{ github.sha }}\`" >> SECURITY_TEST_REPORT.md
+          echo "- **Mục tiêu:** Kiểm thử độc lập JWT Auth (Chức năng 2) & Rate-Limiting / Chống Spam Lượt xem (Chức năng 3)" >> SECURITY_TEST_REPORT.md
+          echo "- **File kiểm thử:** \`backend/tests/test_security_views_auth.py\`" >> SECURITY_TEST_REPORT.md
+          echo "" >> SECURITY_TEST_REPORT.md
+          echo "## 📋 Chi tiết kết quả thực thi Pytest" >> SECURITY_TEST_REPORT.md
+          echo '```text' >> SECURITY_TEST_REPORT.md
+
+          set -o pipefail
+          uv run --directory backend pytest tests/test_security_views_auth.py -v --tb=short 2>&1 | tee -a reports/pytest.log
+          TEST_EXIT_CODE=$?
+
+          cat reports/pytest.log >> SECURITY_TEST_REPORT.md
+          echo '```' >> SECURITY_TEST_REPORT.md
+          echo "" >> SECURITY_TEST_REPORT.md
+
+          if [ $TEST_EXIT_CODE -eq 0 ]; then
+            echo "### ✅ KẾT LUẬN: PASS 100% CÁC TEST CASE BẢO MẬT" >> SECURITY_TEST_REPORT.md
+          else
+            echo "### ❌ KẾT LUẬN: CÓ TEST CASE BẢO MẬT BỊ THẤT BẠI" >> SECURITY_TEST_REPORT.md
+          fi
+
+          exit $TEST_EXIT_CODE
+
+      # ========================================
+      # 6. Tải báo cáo lên GitHub Artifacts
+      # ========================================
+      - name: Upload Security Test Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-report
+          path: SECURITY_TEST_REPORT.md
+          retention-days: 14

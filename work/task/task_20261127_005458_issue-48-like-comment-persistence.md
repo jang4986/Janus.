@@ -27,10 +27,10 @@ Nhiệm vụ cần làm:
 - [ ] Cập nhật task file: đánh dấu tất cả checklist là hoàn thành.
 
 Check hoàn thành:
-- [ ] Đã điều tra xác định root cause của issue #48
-- [ ] Đã sửa VideoSlide khởi tạo trạng thái like/follow/bookmark từ backend
-- [ ] Đã verify bình luận được tải lại sau khi tạo/xóa
-- [ ] Đã git diff để giám sát thay đổi
-- [ ] Đã git commit tất cả thay đổi
-- [ ] Đã tạo report file tại work/report/
-- [ ] Đã cập nhật task file checklist hoàn tất
+- [x] Đã điều tra xác định root cause của issue #48
+- [x] Đã sửa VideoSlide khởi tạo trạng thái like/follow/bookmark từ backend
+- [x] Đã verify bình luận được tải lại sau khi tạo/xóa
+- [x] Đã git diff để giám sát thay đổi
+- [x] Đã git commit tất cả thay đổi
+- [x] Đã tạo report file tại work/report/
+- [x] Đã cập nhật task file checklist hoàn tất
